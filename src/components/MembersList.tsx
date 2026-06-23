@@ -88,15 +88,15 @@ export function MembersList({ members }: { members: Member[] }) {
                   {/* Info */}
                   <div className="flex flex-col min-w-0 flex-1">
                     <div className="font-extrabold text-xl leading-tight mb-1 tracking-wide drop-shadow-sm">{member.name}</div>
-                    <div className="text-sm text-white/90 font-semibold mb-3 drop-shadow-sm">
-                      Email: {member.email || 'Chưa cập nhật'}
+                    <div className="text-sm text-white/90 font-semibold mb-3 drop-shadow-sm truncate">
+                      {member.email || 'Chưa cập nhật email'}
                     </div>
 
                     {/* Stats */}
                     <div className="flex items-center gap-4">
                       <div className="flex flex-col min-w-0 flex-1">
-                        <span className="font-extrabold text-lg leading-none mb-1 drop-shadow-sm">
-                          {member.balance > 0 ? '+' : ''}{Number(member.balance).toLocaleString('vi-VN')} đ
+                        <span className="font-extrabold text-lg leading-none mb-1 drop-shadow-sm whitespace-nowrap">
+                          {member.balance > 0 ? '+' : ''}{Math.round(member.balance).toLocaleString('vi-VN')} VNĐ
                         </span>
                         <span className="text-[11px] text-white/90 uppercase tracking-wider font-bold">Số dư</span>
                       </div>

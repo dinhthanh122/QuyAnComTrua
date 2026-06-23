@@ -26,7 +26,11 @@ export default async function AdminHistoryPage() {
   return (
     <>
       <div style={{display: 'none'}} id="debug-history-length">{history.length}</div>
-      <HistoryFilterView initialHistory={history} members={members} />
+      <HistoryFilterView 
+        initialHistory={history} 
+        members={members} 
+        title="Lịch sử Giao dịch"
+      />
     </>
   );
 }

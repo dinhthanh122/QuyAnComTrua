@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Loader2, Search } from 'lucide-react';
 import { Checkbox } from './ui/checkbox';
 import { ScrollArea } from './ui/scroll-area';
+import { useRouter } from 'next/navigation';
 
 export function EditExpenseModal({ 
   expense, 
@@ -29,8 +30,10 @@ export function EditExpenseModal({
   pinCode?: string;
   onSuccess?: () => void;
 }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isSelectClosing, setIsSelectClosing] = useState(false);
   
   const [totalAmount, setTotalAmount] = useState('');
   const [payerId, setPayerId] = useState('');
@@ -57,6 +60,7 @@ export function EditExpenseModal({
   );
 
   const toggleParticipant = (id: string) => {
+    if (isSelectClosing) return;
     if (id === payerId && participants.includes(id)) {
       alert("Người thanh toán hộ bắt buộc phải tham gia bữa ăn này!");
       return;
@@ -67,17 +71,24 @@ export function EditExpenseModal({
   };
 
   const handlePayerChange = (v: string) => {
+    setIsSelectClosing(true);
+    setTimeout(() => setIsSelectClosing(false), 200);
+
     setParticipants(prev => {
       let next = [...prev];
-      if (payerId && next.includes(payerId)) {
-        next = next.filter(p => p !== payerId);
-      }
       if (v && !next.includes(v)) {
         next.push(v);
       }
       return next;
     });
     setPayerId(v);
+
+    setTimeout(() => {
+      const el = document.getElementById(`edit-participant-container-${v}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
   };
 
   const selectAll = () => {
@@ -110,6 +121,7 @@ export function EditExpenseModal({
       onOpenChange(false);
       setShowConfirm(false);
       if (onSuccess) onSuccess();
+      router.refresh();
     } catch (error: any) {
       alert('Có lỗi xảy ra: ' + (error.message || error));
     } finally {
@@ -172,13 +184,28 @@ export function EditExpenseModal({
                   </div>
                 </div>
                 
-                <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl mt-4">
+                <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl mt-4 space-y-3">
                   <div className="text-center">
                     <div className="text-sm text-slate-500 mb-1">Mỗi người phải trả (mới)</div>
-                    <div className="text-xl font-bold text-blue-700">
-                      {Math.round(Number(totalAmount.replace(/\D/g, '')) / participants.length).toLocaleString('vi-VN')}đ
+                    <div className="text-xl font-bold text-red-600">
+                      -{participants.length > 0 ? Math.round(Number(totalAmount.replace(/\D/g, '')) / participants.length).toLocaleString('vi-VN') : 0} VNĐ
                     </div>
                   </div>
+                  {(() => {
+                    if (participants.length === 0) return null;
+                    const total = Number(totalAmount.replace(/\D/g, ''));
+                    const amountPerPerson = Math.round(total / participants.length);
+                    const payerGetsBack = participants.includes(payerId) ? total - amountPerPerson : total;
+                    const payerName = members.find(m => m.id === payerId)?.name || '';
+                    return (
+                      <div className="text-center pt-3 border-t border-blue-200">
+                        <div className="text-sm text-slate-500 mb-1"><span className="font-semibold">{payerName}</span> sẽ được cộng vào</div>
+                        <div className="text-xl font-bold text-green-600">
+                          +{Math.round(payerGetsBack).toLocaleString('vi-VN')} VNĐ
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {updaterId && (
@@ -249,7 +276,7 @@ export function EditExpenseModal({
                         {payerId ? members.find(m => m.id === payerId)?.name : null}
                       </SelectValue>
                     </SelectTrigger>
-                    <SelectContent className="max-h-[350px] flex flex-col p-1 rounded-xl shadow-xl">
+                    <SelectContent alignItemWithTrigger={false} sideOffset={4} className="max-h-[350px] flex flex-col p-1 rounded-xl shadow-xl">
                       <div className="p-2 sticky top-0 bg-white z-10 border-b mb-1">
                         <div className="relative">
                           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -290,7 +317,7 @@ export function EditExpenseModal({
                 <div className="space-y-2">
                   <Label className="text-slate-600">Ghi chú bữa ăn</Label>
                   <Input 
-                    placeholder="Ví dụ: Bún chả trưa 19/6" 
+                    placeholder="Ví dụ: Bún chả" 
                     value={description}
                     onChange={e => setDescription(e.target.value)}
                     className="h-12 rounded-xl"
@@ -319,15 +346,24 @@ export function EditExpenseModal({
                     {filteredMembers.map(member => (
                       <div 
                         key={member.id} 
+                        id={`edit-participant-container-${member.id}`}
                         className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-100 transition-colors"
                       >
                         <Checkbox 
                           id={`edit-participant-${member.id}`} 
                           checked={participants.includes(member.id)}
-                          onCheckedChange={() => toggleParticipant(member.id)}
+                          onCheckedChange={() => {
+                            if (!isSelectClosing) toggleParticipant(member.id);
+                          }}
                           className="w-5 h-5 rounded-md data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
                         />
-                        <label htmlFor={`edit-participant-${member.id}`} className="font-medium text-slate-700 select-none flex-1 cursor-pointer">
+                        <label 
+                          htmlFor={`edit-participant-${member.id}`} 
+                          onClick={(e) => {
+                            if (isSelectClosing) e.preventDefault();
+                          }}
+                          className="font-medium text-slate-700 select-none flex-1 cursor-pointer"
+                        >
                           {member.name}
                         </label>
                       </div>

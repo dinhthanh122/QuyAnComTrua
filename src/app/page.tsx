@@ -52,14 +52,12 @@ export default async function Home() {
             <>
               <SettleDebtModal members={members} />
               <div className="grid grid-cols-2 gap-3">
-                <Link href="/admin/history" className="w-full h-14 rounded-xl text-base border border-slate-200 text-slate-700 bg-white hover:bg-slate-100 shadow-sm flex items-center justify-center font-semibold transition-colors">
+                <Link href="/admin/history" className="col-span-2 w-full h-14 rounded-xl text-base border border-slate-200 text-slate-700 bg-white hover:bg-slate-100 shadow-sm flex items-center justify-center font-semibold transition-colors">
                   <History className="w-5 h-5 mr-2" />
-                  Lịch sử Thu Chi
+                  Lịch sử Giao dịch
                 </Link>
                 <ManageMembersModal members={members} />
-                <div className="col-span-2">
-                  <EmailConfigModal />
-                </div>
+                <EmailConfigModal />
               </div>
             </>
           )}

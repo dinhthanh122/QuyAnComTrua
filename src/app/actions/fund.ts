@@ -158,6 +158,10 @@ export async function getFundStats() {
   // 1. Tổng quỹ: sum(balance)
   const { data: members } = await supabase.from('members').select('balance');
   const totalFund = members?.reduce((sum, m) => sum + (m.balance || 0), 0) || 0;
+  
+  // Tính tổng tiền cần thu (các số dư âm) và tổng tiền cần trả (các số dư dương)
+  const totalReceivables = members?.reduce((sum, m) => sum + (m.balance < 0 ? m.balance : 0), 0) || 0;
+  const totalPayables = members?.reduce((sum, m) => sum + (m.balance > 0 ? m.balance : 0), 0) || 0;
 
   // 2. Thu tháng này: sum(amount) from fund_transactions where type = 'NAP_QUY'
   const { data: incomes } = await supabase
@@ -167,16 +171,32 @@ export async function getFundStats() {
     .gte('created_at', startOfMonth.toISOString());
   const incomeThisMonth = incomes?.reduce((sum, t) => sum + (t.amount || 0), 0) || 0;
 
-  // 3. Chi tháng này: sum(total_amount) from expenses
+  // 3. Chi tháng này: sum(amount that others owe to the payer)
   const { data: expenses } = await supabase
     .from('expenses')
-    .select('total_amount')
+    .select('id, total_amount, payer_id')
     .gte('date', startOfMonth.toISOString());
-  const expenseThisMonth = expenses?.reduce((sum, e) => sum + (e.total_amount || 0), 0) || 0;
+    
+  let expenseThisMonth = 0;
+  if (expenses) {
+    const { data: splits } = await supabase.from('expense_splits').select('expense_id, user_id');
+    for (const e of expenses) {
+      const expSplits = splits?.filter(s => s.expense_id === e.id) || [];
+      const count = expSplits.length;
+      if (count > 0) {
+        const perPerson = e.total_amount / count;
+        const payerInSplits = expSplits.some(s => s.user_id === e.payer_id);
+        const payerShare = payerInSplits ? perPerson : 0;
+        expenseThisMonth += (e.total_amount - payerShare);
+      }
+    }
+  }
 
   return {
     totalFund,
     incomeThisMonth,
-    expenseThisMonth
+    expenseThisMonth,
+    totalReceivables,
+    totalPayables
   };
 }

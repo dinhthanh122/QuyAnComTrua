@@ -90,7 +90,7 @@ export function MemberHistoryModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} disablePointerDismissal>
-      <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl p-6 max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-2xl w-[95vw] rounded-2xl p-6 max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-xl flex flex-col gap-1">
             <span className="text-slate-500 text-sm font-normal">Lịch sử giao dịch</span>
@@ -132,7 +132,7 @@ export function MemberHistoryModal({
               <div className="bg-slate-50 rounded-xl p-4 flex items-center justify-between mb-2">
                 <span className="text-slate-600 font-medium">Số dư hiện tại</span>
                 <span className={`font-bold text-lg ${member.balance > 0 ? 'text-blue-600' : member.balance < 0 ? 'text-red-500' : 'text-slate-500'}`}>
-                  {member.balance > 0 ? '+' : ''}{member.balance.toLocaleString()} đ
+                  {member.balance > 0 ? '+' : ''}{Math.round(member.balance).toLocaleString('vi-VN')} VNĐ
                 </span>
               </div>
               
@@ -146,6 +146,7 @@ export function MemberHistoryModal({
                         <tr>
                           <th className="px-4 py-3 font-medium">Thời gian</th>
                           <th className="px-4 py-3 font-medium">Nội dung</th>
+                          <th className="px-4 py-3 font-medium text-center">Người trả</th>
                           <th className="px-4 py-3 font-medium text-right">Biến động</th>
                           <th className="px-2 py-3 font-medium text-right"></th>
                         </tr>
@@ -164,13 +165,26 @@ export function MemberHistoryModal({
                                 <span className="font-medium text-slate-700">{tx.description}</span>
                               </div>
                             </td>
+                            <td className="px-4 py-3 text-center whitespace-nowrap text-slate-600 text-xs">
+                              {tx.type === 'PAID' ? (
+                                <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-600 font-medium rounded-md">
+                                  Bạn
+                                </span>
+                              ) : tx.payer_name ? (
+                                <span className={`inline-flex items-center px-2 py-1 rounded-md ${tx.payer_name === member.name ? 'bg-blue-50 text-blue-600 font-medium' : 'bg-slate-100'}`}>
+                                  {tx.payer_name === member.name ? 'Bạn' : tx.payer_name}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">-</span>
+                              )}
+                            </td>
                             <td className="px-4 py-3 text-right whitespace-nowrap">
                               <span className={`font-semibold ${tx.balance_change > 0 ? 'text-blue-600' : 'text-red-500'}`}>
-                                {tx.balance_change > 0 ? '+' : ''}{tx.balance_change.toLocaleString()}đ
+                                {tx.balance_change > 0 ? '+' : ''}{Math.round(tx.balance_change).toLocaleString('vi-VN')} VNĐ
                               </span>
                             </td>
                             <td className="px-2 py-3 text-right">
-                              {(tx.type === 'PAID' || tx.type === 'PARTICIPATED') && (
+                              {tx.type === 'PAID' && (
                                 <Button 
                                   variant="ghost" 
                                   size="sm" 

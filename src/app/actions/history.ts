@@ -11,6 +11,7 @@ export type MemberTransaction = {
   description: string;
   date: string;
   balance_change: number;
+  payer_name?: string;
 };
 
 export async function verifyPinAndGetHistory(memberId: string, pinCode: string | null): Promise<MemberTransaction[]> {
@@ -36,6 +37,10 @@ export async function verifyPinAndGetHistory(memberId: string, pinCode: string |
     }
   }
 
+  // Lấy danh sách thành viên để map tên
+  const { data: members } = await supabase.from('members').select('id, name');
+  const membersMap = new Map((members || []).map(m => [m.id, m.name]));
+
   // Lấy lịch sử giao dịch
   const history: MemberTransaction[] = [];
 
@@ -45,38 +50,64 @@ export async function verifyPinAndGetHistory(memberId: string, pinCode: string |
     .select('id, total_amount, description, created_at, date')
     .eq('payer_id', memberId);
 
+  const paidMap = new Map();
   if (paidExpenses) {
     for (const exp of paidExpenses) {
-      history.push({
-        id: exp.id,
-        type: 'PAID',
-        amount: exp.total_amount,
-        description: `Thanh toán hộ: ${exp.description || 'Ăn trưa'}`,
-        date: exp.created_at || exp.date,
-        balance_change: exp.total_amount
-      });
+      paidMap.set(exp.id, exp);
     }
   }
 
   // 2. Lấy các bữa ăn tham gia (PARTICIPATED) -> Giảm số dư (-)
   const { data: participations } = await supabase
     .from('expense_splits')
-    .select('expense_id, amount_owed, expenses(description, created_at, date)')
+    .select('expense_id, amount_owed, expenses(description, created_at, date, payer_id)')
     .eq('user_id', memberId);
 
   if (participations) {
     for (const part of participations) {
       const exp = part.expenses as any;
       if (!exp) continue;
-      history.push({
-        id: part.expense_id + '_split',
-        type: 'PARTICIPATED',
-        amount: part.amount_owed,
-        description: `Tham gia ăn: ${exp.description || 'Ăn trưa'}`,
-        date: exp.created_at || exp.date,
-        balance_change: -part.amount_owed
-      });
+
+      if (paidMap.has(part.expense_id)) {
+        // User paid and participated -> Combine into a single net positive (or 0) transaction
+        const paidExp = paidMap.get(part.expense_id);
+        const netAmount = paidExp.total_amount - part.amount_owed;
+        history.push({
+          id: paidExp.id,
+          type: 'PAID',
+          amount: netAmount,
+          description: `Báo cơm (đã trừ phần mình): ${paidExp.description || 'Ăn trưa'}`,
+          date: paidExp.created_at || paidExp.date,
+          balance_change: netAmount,
+          payer_name: 'Bạn'
+        });
+        paidMap.delete(part.expense_id);
+      } else {
+        // User participated but didn't pay
+        history.push({
+          id: part.expense_id + '_split',
+          type: 'PARTICIPATED',
+          amount: part.amount_owed,
+          description: `Tham gia ăn: ${exp.description || 'Ăn trưa'}`,
+          date: exp.created_at || exp.date,
+          balance_change: -part.amount_owed,
+          payer_name: membersMap.get(exp.payer_id)
+        });
+      }
     }
+  }
+
+  // Add remaining paidExpenses (user paid but didn't participate)
+  for (const exp of paidMap.values()) {
+    history.push({
+      id: exp.id,
+      type: 'PAID',
+      amount: exp.total_amount,
+      description: `Thanh toán hộ: ${exp.description || 'Ăn trưa'}`,
+      date: exp.created_at || exp.date,
+      balance_change: exp.total_amount,
+      payer_name: 'Bạn'
+    });
   }
 
   // 3. Lấy giao dịch Nạp/Rút quỹ

@@ -9,8 +9,10 @@ import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { ArrowRightLeft, Loader2, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export function SettleDebtModal({ members }: { members: Member[] }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [type, setType] = useState<'NAP_QUY' | 'RUT_QUY'>('NAP_QUY');
@@ -23,6 +25,20 @@ export function SettleDebtModal({ members }: { members: Member[] }) {
     e.preventDefault();
     if (!userId || !amount) return;
 
+    const numAmount = Number(amount.replace(/\D/g, ''));
+
+    if (type === 'RUT_QUY') {
+      const selectedMember = members.find(m => m.id === userId);
+      if (!selectedMember || selectedMember.balance <= 0) {
+        alert('Thành viên này đang âm quỹ hoặc số dư bằng 0, không thể rút!');
+        return;
+      }
+      if (numAmount > selectedMember.balance) {
+        alert(`Không thể rút! Số tiền yêu cầu vượt quá số dư hiện tại (${selectedMember.balance.toLocaleString('vi-VN')}đ).`);
+        return;
+      }
+    }
+
     if (!confirming) {
       setConfirming(true);
       return;
@@ -32,7 +48,7 @@ export function SettleDebtModal({ members }: { members: Member[] }) {
     try {
       await processFundTransaction({
         user_id: userId,
-        amount: Number(amount.replace(/\D/g, '')),
+        amount: numAmount,
         type
       });
       setOpen(false);
@@ -40,6 +56,7 @@ export function SettleDebtModal({ members }: { members: Member[] }) {
       setUserId('');
       setUserSearch('');
       setAmount('');
+      router.refresh();
     } catch (err: any) {
       alert(err.message || 'Có lỗi xảy ra!');
     } finally {

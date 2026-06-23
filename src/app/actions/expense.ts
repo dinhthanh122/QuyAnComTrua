@@ -79,6 +79,7 @@ export async function addExpense(data: {
   total_amount: number;
   description: string;
   participants: string[];
+  date?: string;
 }) {
   const amount_per_person = data.total_amount / data.participants.length;
 
@@ -93,6 +94,21 @@ export async function addExpense(data: {
   if (error) {
     console.error('Error adding expense:', error);
     throw new Error('Failed to add expense: ' + error.message);
+  }
+
+  // Update date if provided
+  if (data.date) {
+    const { data: newExpense } = await supabase
+      .from('expenses')
+      .select('id')
+      .eq('payer_id', data.payer_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (newExpense) {
+      await supabase.from('expenses').update({ date: data.date }).eq('id', newExpense.id);
+    }
   }
 
   // Lấy tên người báo
@@ -170,14 +186,19 @@ export async function settleDebt(data: {
 export async function checkDuplicateExpense(data: {
   total_amount: number;
   participants: string[];
+  date?: string;
 }): Promise<boolean> {
-  const startOfDay = new Date();
+  const startOfDay = data.date ? new Date(data.date) : new Date();
   startOfDay.setHours(0, 0, 0, 0);
+  
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setDate(endOfDay.getDate() + 1);
 
   const { data: expenses } = await supabase
     .from('expenses')
     .select('id')
     .gte('date', startOfDay.toISOString())
+    .lt('date', endOfDay.toISOString())
     .eq('total_amount', data.total_amount);
 
   if (!expenses || expenses.length === 0) return false;

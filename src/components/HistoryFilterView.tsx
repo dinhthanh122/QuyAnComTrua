@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import { TransactionHistory } from '@/app/actions/fund';
-import { History, ArrowDownToLine, ArrowUpFromLine, UtensilsCrossed, Search, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { History, ArrowDownToLine, ArrowUpFromLine, UtensilsCrossed, Search, ArrowLeft, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
 import Link from 'next/link';
 import { Button } from './ui/button';
 import { NotificationFeed } from './NotificationFeed';
@@ -11,11 +12,25 @@ import { EditExpenseModal } from './EditExpenseModal';
 import { Member } from '@/app/actions/expense';
 import { useRouter } from 'next/navigation';
 
-export function HistoryFilterView({ initialHistory, members }: { initialHistory: TransactionHistory[], members: Member[] }) {
+export function HistoryFilterView({ 
+  initialHistory, 
+  members, 
+  defaultTypeFilter = 'ALL',
+  hideTypeFilter = false,
+  title = 'Lịch sử Thu Chi',
+  icon = <History className="w-6 h-6 text-blue-600" />
+}: { 
+  initialHistory: TransactionHistory[], 
+  members: Member[],
+  defaultTypeFilter?: 'ALL' | 'EXPENSE' | 'NAP_QUY' | 'RUT_QUY' | 'FUND',
+  hideTypeFilter?: boolean,
+  title?: string,
+  icon?: React.ReactNode
+}) {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [editingExpense, setEditingExpense] = useState<TransactionHistory | null>(null);
-  const [typeFilter, setTypeFilter] = useState<'ALL' | 'EXPENSE' | 'NAP_QUY' | 'RUT_QUY'>('ALL');
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'EXPENSE' | 'NAP_QUY' | 'RUT_QUY' | 'FUND'>(defaultTypeFilter);
   const [dateFilterType, setDateFilterType] = useState('ALL'); // 'ALL', 'CUSTOM'
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -35,12 +50,21 @@ export function HistoryFilterView({ initialHistory, members }: { initialHistory:
           return false;
         }
       }
-      // 2. Filter by Type
-      if (typeFilter !== 'ALL' && tx.type !== typeFilter) {
-        return false;
+      if (typeFilter !== 'ALL') {
+        if (typeFilter === 'FUND' && tx.type === 'EXPENSE') return false;
+        if (typeFilter !== 'FUND' && tx.type !== typeFilter) return false;
       }
       // 3. Filter by Date
-      if (dateFilterType === 'CUSTOM') {
+      if (dateFilterType === 'THIS_MONTH') {
+        const now = new Date();
+        const txDate = new Date(tx.created_at);
+        if (txDate.getMonth() !== now.getMonth() || txDate.getFullYear() !== now.getFullYear()) return false;
+      } else if (dateFilterType === 'LAST_MONTH') {
+        const now = new Date();
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const txDate = new Date(tx.created_at);
+        if (txDate.getMonth() !== lastMonth.getMonth() || txDate.getFullYear() !== lastMonth.getFullYear()) return false;
+      } else if (dateFilterType === 'CUSTOM') {
         const txTime = new Date(tx.created_at).getTime();
         if (startDate) {
           const start = new Date(startDate).getTime();
@@ -71,11 +95,39 @@ export function HistoryFilterView({ initialHistory, members }: { initialHistory:
   };
   const handleDateFilterTypeChange = (v: string) => {
     setDateFilterType(v);
-    if (v === 'ALL') {
+    if (v !== 'CUSTOM') {
       setStartDate('');
       setEndDate('');
     }
     setCurrentPage(1);
+  };
+
+  const exportToExcel = () => {
+    const data = filteredHistory.map(tx => ({
+      'Thời gian': format(new Date(tx.created_at), 'dd/MM/yyyy HH:mm'),
+      'Loại': tx.type === 'EXPENSE' ? 'Báo Cơm' : tx.type === 'NAP_QUY' ? 'Nạp Quỹ' : 'Rút Quỹ',
+      'Người thao tác': tx.actor_name,
+      'Người liên quan': tx.participants ? tx.participants.join(', ') : '',
+      'Số tiền': tx.type === 'RUT_QUY' || tx.type === 'EXPENSE' ? -Math.round(tx.amount) : Math.round(tx.amount),
+      'Ghi chú': tx.description
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    
+    // Auto-size columns
+    const wscols = [
+      {wch: 18}, // Thời gian
+      {wch: 12}, // Loại
+      {wch: 25}, // Người thao tác
+      {wch: 40}, // Người liên quan
+      {wch: 15}, // Số tiền
+      {wch: 30}  // Ghi chú
+    ];
+    ws['!cols'] = wscols;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "LichSu");
+    XLSX.writeFile(wb, `LichSu_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`);
   };
 
   const getIcon = (type: TransactionHistory['type']) => {
@@ -103,11 +155,17 @@ export function HistoryFilterView({ initialHistory, members }: { initialHistory:
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <h1 className="text-xl font-bold flex items-center gap-2">
-              <History className="w-6 h-6 text-blue-600" />
-              Lịch sử Thu Chi
+              {icon}
+              {title}
             </h1>
           </div>
-          <NotificationFeed />
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={exportToExcel} className="hidden sm:flex items-center gap-2 border-slate-200">
+              <Download className="w-4 h-4" />
+              Xuất Excel
+            </Button>
+            <NotificationFeed />
+          </div>
         </div>
       </div>
 
@@ -127,16 +185,19 @@ export function HistoryFilterView({ initialHistory, members }: { initialHistory:
             />
           </div>
 
-          <select
-            className="block w-full pl-3 pr-10 py-2.5 border border-slate-200 rounded-xl leading-5 bg-slate-50 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-            value={typeFilter}
-            onChange={e => handleTypeChange(e.target.value)}
-          >
-            <option value="ALL">Tất cả giao dịch</option>
-            <option value="EXPENSE">Chỉ Báo Cơm</option>
-            <option value="NAP_QUY">Chỉ Nạp Quỹ</option>
-            <option value="RUT_QUY">Chỉ Rút Quỹ</option>
-          </select>
+          {!hideTypeFilter && (
+            <select
+              className="block w-full pl-3 pr-10 py-2.5 border border-slate-200 rounded-xl leading-5 bg-slate-50 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+              value={typeFilter}
+              onChange={e => handleTypeChange(e.target.value)}
+            >
+              <option value="ALL">Tất cả giao dịch</option>
+              <option value="EXPENSE">Chỉ Báo Cơm</option>
+              <option value="FUND">Chỉ Nạp/Rút Quỹ</option>
+              <option value="NAP_QUY">Chỉ Nạp Quỹ</option>
+              <option value="RUT_QUY">Chỉ Rút Quỹ</option>
+            </select>
+          )}
 
           <select
             className="block w-full pl-3 pr-10 py-2.5 border border-slate-200 rounded-xl leading-5 bg-slate-50 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
@@ -144,8 +205,17 @@ export function HistoryFilterView({ initialHistory, members }: { initialHistory:
             onChange={e => handleDateFilterTypeChange(e.target.value)}
           >
             <option value="ALL">Tất cả thời gian</option>
+            <option value="THIS_MONTH">Tháng này</option>
+            <option value="LAST_MONTH">Tháng trước</option>
             <option value="CUSTOM">Tùy chọn khoảng thời gian...</option>
           </select>
+        </div>
+
+        <div className="sm:hidden mb-6 flex justify-end">
+           <Button variant="outline" onClick={exportToExcel} className="w-full flex items-center justify-center gap-2 border-slate-200">
+              <Download className="w-4 h-4" />
+              Xuất Excel
+            </Button>
         </div>
 
         {/* Custom Date Range Picker */}
@@ -229,7 +299,7 @@ export function HistoryFilterView({ initialHistory, members }: { initialHistory:
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap font-bold text-right text-slate-700">
                         {tx.type === 'RUT_QUY' ? '-' : (tx.type === 'EXPENSE' ? '-' : '+')}
-                        {tx.amount.toLocaleString()}đ
+                        {Math.round(tx.amount).toLocaleString('vi-VN')} VNĐ
                       </td>
                       <td className="px-5 py-4 text-slate-600">
                         {tx.description}
