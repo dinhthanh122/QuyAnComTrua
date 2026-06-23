@@ -34,3 +34,18 @@ export async function saveSystemConfig(config: SystemConfig) {
     throw new Error('Không thể lưu cấu hình: ' + error.message);
   }
 }
+
+import { revalidatePath } from 'next/cache';
+
+export async function resetDatabaseAction() {
+  const isAdmin = await checkIsAdmin();
+  if (!isAdmin) throw new Error('Unauthorized');
+
+  await supabase.from('fund_transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('expense_splits').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('expenses').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('members').update({ balance: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
+
+  revalidatePath('/');
+  return { success: true };
+}

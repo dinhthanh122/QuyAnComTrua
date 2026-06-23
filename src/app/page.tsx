@@ -6,6 +6,7 @@ import { AddExpenseModal } from '@/components/AddExpenseModal';
 import { SettleDebtModal } from '@/components/SettleDebtModal';
 import { ManageMembersModal } from '@/components/ManageMembersModal';
 import { EmailConfigModal } from '@/components/EmailConfigModal';
+import { ResetDatabaseModal } from '@/components/ResetDatabaseModal';
 import { LoginModal } from '@/components/LoginModal';
 import { History } from 'lucide-react';
 import Link from 'next/link';
@@ -58,6 +59,9 @@ export default async function Home() {
                 </Link>
                 <ManageMembersModal members={members} />
                 <EmailConfigModal />
+                <div className="col-span-2">
+                  <ResetDatabaseModal />
+                </div>
               </div>
             </>
           )}
