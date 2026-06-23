@@ -2,6 +2,7 @@ import { getMembers, Member } from './actions/expense';
 import { getFundStats } from './actions/fund';
 import { MembersList } from '@/components/MembersList';
 import { FundOverviewCard } from '@/components/FundOverviewCard';
+import { FoodieChart } from '@/components/FoodieChart';
 import { AddExpenseModal } from '@/components/AddExpenseModal';
 import { SettleDebtModal } from '@/components/SettleDebtModal';
 import { ManageMembersModal } from '@/components/ManageMembersModal';
@@ -13,6 +14,7 @@ import Link from 'next/link';
 import { UtensilsCrossed } from 'lucide-react';
 import { checkIsAdmin, logoutAdmin } from './actions/auth';
 import { NotificationFeed } from '@/components/NotificationFeed';
+import { RealtimeSubscriber } from '@/components/RealtimeSubscriber';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +37,8 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen bg-slate-50 pb-20 font-sans selection:bg-blue-100">
-      <div className="bg-white px-5 pt-12 pb-6 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] rounded-b-3xl relative z-10">
+      <RealtimeSubscriber />
+      <div className="bg-white px-5 pt-12 pb-6 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] rounded-b-3xl relative z-50">
         <div className="flex justify-between items-center mb-6">
           <div className="w-12 h-12 bg-gradient-to-tr from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
             <UtensilsCrossed className="w-6 h-6 text-white" />
@@ -68,8 +71,12 @@ export default async function Home() {
         </div>
       </div>
 
-      <div className="p-5 mt-2 max-w-md mx-auto">
+      <div className="p-5 mt-2 w-full max-w-5xl mx-auto">
         <FundOverviewCard members={members} />
+      </div>
+
+      <div className="px-5 max-w-md mx-auto">
+        <FoodieChart members={members} />
         
         <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 px-1">
           Số dư tài khoản
