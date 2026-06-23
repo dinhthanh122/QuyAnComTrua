@@ -141,41 +141,45 @@ export function ManageMembersModal({ members }: { members: Member[] }) {
 
         {/* Add new */}
         <form onSubmit={handleAdd} className="flex flex-col gap-2 mt-4">
-          <div className="flex gap-2">
-            <Input 
-              placeholder="Tên thành viên mới..." 
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              className="flex-1 rounded-xl"
-              disabled={loading}
-            />
-            <Input 
-              placeholder="Email bắt buộc..." 
-              type="email"
-              required
-              value={newEmail}
-              onChange={e => setNewEmail(e.target.value)}
-              className="flex-1 rounded-xl"
-              disabled={loading}
-            />
-            <Input 
-              placeholder="PIN bắt buộc..." 
-              required
-              value={newPinCode}
-              onChange={e => setNewPinCode(e.target.value.replace(/\D/g, ''))}
-              maxLength={6}
-              className="w-28 rounded-xl"
-              disabled={loading}
-            />
-            <select
-              value={newGender}
-              onChange={e => setNewGender(e.target.value)}
-              className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950"
-              disabled={loading}
-            >
-              <option value="MALE">Nam</option>
-              <option value="FEMALE">Nữ</option>
-            </select>
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <Input 
+                placeholder="Tên thành viên mới..." 
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                className="flex-1 rounded-xl"
+                disabled={loading}
+              />
+              <select
+                value={newGender}
+                onChange={e => setNewGender(e.target.value)}
+                className="w-28 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950"
+                disabled={loading}
+              >
+                <option value="MALE">Nam</option>
+                <option value="FEMALE">Nữ</option>
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <Input 
+                placeholder="Email (bắt buộc)..." 
+                type="email"
+                required
+                value={newEmail}
+                onChange={e => setNewEmail(e.target.value)}
+                className="flex-1 rounded-xl"
+                disabled={loading}
+              />
+              <Input 
+                placeholder="Mã PIN (6 số)" 
+                required
+                value={newPinCode}
+                onChange={e => setNewPinCode(e.target.value.replace(/\D/g, ''))}
+                maxLength={6}
+                className="w-32 rounded-xl text-center font-mono tracking-widest"
+                disabled={loading}
+              />
+            </div>
           </div>
           <div className="flex items-center gap-2 mb-2">
             <label className="text-sm text-slate-600 flex items-center gap-2 cursor-pointer">
@@ -200,41 +204,43 @@ export function ManageMembersModal({ members }: { members: Member[] }) {
             <div key={m.id} className="flex items-center justify-between p-3 border rounded-xl bg-slate-50">
               {editingId === m.id ? (
                 <div className="flex items-center flex-1 gap-2">
-                  <div className="flex flex-col flex-1 gap-2">
+                  <div className="flex flex-col flex-1 gap-2 w-full">
                     <div className="flex gap-2">
                       <Input 
                         value={editName}
                         onChange={e => setEditName(e.target.value)}
-                        className="h-8 flex-1"
-                        placeholder="Tên..."
+                        className="h-9 flex-1"
+                        placeholder="Tên thành viên..."
                         autoFocus
                       />
+                      <select
+                        value={editGender}
+                        onChange={e => setEditGender(e.target.value)}
+                        className="h-9 w-24 rounded-md border border-slate-200 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950"
+                      >
+                        <option value="MALE">Nam</option>
+                        <option value="FEMALE">Nữ</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-2">
                       <Input 
                         value={editEmail}
                         onChange={e => setEditEmail(e.target.value)}
-                        className="h-8 flex-1"
-                        placeholder="Email..."
+                        className="h-9 flex-1"
+                        placeholder="Email (bắt buộc)..."
                         type="email"
                         required
                       />
                       <Input 
                         value={editPinCode}
                         onChange={e => setEditPinCode(e.target.value.replace(/\D/g, ''))}
-                        className="h-8 w-24"
+                        className="h-9 w-24 text-center tracking-widest font-mono"
                         placeholder="Mã PIN"
                         maxLength={6}
                         required
                       />
-                      <select
-                        value={editGender}
-                        onChange={e => setEditGender(e.target.value)}
-                        className="h-8 w-20 rounded-md border border-slate-200 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950"
-                      >
-                        <option value="MALE">Nam</option>
-                        <option value="FEMALE">Nữ</option>
-                      </select>
                     </div>
-                    <label className="text-xs text-slate-600 flex items-center gap-2 cursor-pointer">
+                    <label className="text-sm text-slate-600 flex items-center gap-2 cursor-pointer mt-1">
                       <input 
                         type="checkbox" 
                         checked={editReceiveNotifs}
