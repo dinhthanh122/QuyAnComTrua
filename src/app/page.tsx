@@ -69,7 +69,7 @@ export default async function Home() {
       </div>
 
       <div className="p-5 mt-2 max-w-md mx-auto">
-        <FundOverviewCard stats={stats} />
+        <FundOverviewCard members={members} />
         
         <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 px-1">
           Số dư tài khoản
