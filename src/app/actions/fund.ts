@@ -14,6 +14,7 @@ export type TransactionHistory = {
   created_at: string;
   participants?: string[];
   participant_ids?: string[];
+  splits?: any[];
   payer_id?: string;
 };
 
@@ -174,13 +175,30 @@ export async function getFundStats() {
   // 3. Chi tháng này: sum(amount that others owe to the payer)
   const { data: expenses } = await supabase
     .from('expenses')
-    .select('id, total_amount, payer_id')
+    .select('id, total_amount, payer_id, description')
     .gte('date', startOfMonth.toISOString());
     
   let expenseThisMonth = 0;
   if (expenses) {
     const { data: splits } = await supabase.from('expense_splits').select('expense_id, user_id');
     for (const e of expenses) {
+      const descParts = (e.description || '').split(' | META: ');
+      if (descParts.length > 1) {
+        try {
+          const metaObj = JSON.parse(descParts[1]);
+          if (metaObj.net) {
+            // Chi tháng này = Tổng các net change dương (tiền mà quỹ nợ người trả)
+            let positiveSum = 0;
+            for (const val of Object.values(metaObj.net)) {
+              if (typeof val === 'number' && val > 0) positiveSum += val;
+            }
+            expenseThisMonth += positiveSum;
+            continue;
+          }
+        } catch (err) {}
+      }
+
+      // Fallback for old expenses
       const expSplits = splits?.filter(s => s.expense_id === e.id) || [];
       const count = expSplits.length;
       if (count > 0) {

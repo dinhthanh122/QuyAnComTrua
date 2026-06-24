@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Member, addExpense, checkDuplicateExpense } from '@/app/actions/expense';
+import { useState, useEffect, useRef } from 'react';
+import { Member, addExpense, checkDuplicateExpense, ParticipantSplit } from '@/app/actions/expense';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { PlusCircle, Loader2, Search } from 'lucide-react';
+import { PlusCircle, Loader2, Search, Minus, Plus } from 'lucide-react';
 import { Checkbox } from './ui/checkbox';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { ScrollArea } from './ui/scroll-area';
 import { useRouter } from 'next/navigation';
 
@@ -18,7 +19,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
   const [loading, setLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDuplicate, setIsDuplicate] = useState(false);
-  const [isSelectClosing, setIsSelectClosing] = useState(false);
+  const isSelectClosing = useRef(false);
   
   const [totalAmount, setTotalAmount] = useState('');
   const [payerId, setPayerId] = useState('');
@@ -28,6 +29,8 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
   const [payerSearch, setPayerSearch] = useState('');
   
   const [participants, setParticipants] = useState<string[]>([]);
+  const [splitMode, setSplitMode] = useState<'equal' | 'portions' | 'exact_amount' | 'pay_for_others'>('equal');
+  const [advancedSplits, setAdvancedSplits] = useState<Record<string, { portions: number, sponsor_id: string | null }>>({});
 
   useEffect(() => {
     if (open) {
@@ -36,37 +39,64 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
       setDescription('');
       setDate(new Date().toISOString().split('T')[0]);
       setParticipants([]);
+      setSplitMode('equal');
+      setAdvancedSplits({});
       setSearch('');
       setPayerSearch('');
       setShowConfirm(false);
       setIsDuplicate(false);
-      setIsSelectClosing(false);
+      isSelectClosing.current = false;
     }
   }, [open]);
+
+  useEffect(() => {
+    if (splitMode === 'exact_amount') {
+      const sum = participants.reduce((acc, id) => acc + (advancedSplits[id]?.portions || 0), 0);
+      if (sum > 0) {
+        setTotalAmount(sum.toLocaleString('vi-VN'));
+      }
+    }
+  }, [advancedSplits, participants, splitMode]);
 
   const filteredMembers = members.filter(m => 
     m.name.toLowerCase().includes(search.toLowerCase())
   );
 
   const toggleParticipant = (id: string) => {
-    if (isSelectClosing) return;
-    if (id === payerId && participants.includes(id)) {
-      alert("Người thanh toán hộ bắt buộc phải tham gia bữa ăn này!");
-      return;
-    }
-    setParticipants(prev => 
-      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
-    );
+    if (isSelectClosing.current) return;
+    if (splitMode === 'pay_for_others' && id === payerId) return;
+
+    setParticipants(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(p => p !== id);
+      } else {
+        if (splitMode === 'portions') {
+          setAdvancedSplits(s => ({ ...s, [id]: { portions: 1, sponsor_id: null } }));
+        } else if (splitMode === 'exact_amount') {
+          setAdvancedSplits(s => ({ ...s, [id]: { portions: 0, sponsor_id: null } }));
+        }
+        return [...prev, id];
+      }
+    });
   };
 
   const handlePayerChange = (v: string) => {
-    setIsSelectClosing(true);
-    setTimeout(() => setIsSelectClosing(false), 200);
+    isSelectClosing.current = true;
+    setTimeout(() => isSelectClosing.current = false, 200);
+
+    if (splitMode !== 'pay_for_others' && v && !participants.includes(v)) {
+      if (splitMode === 'portions') {
+        setAdvancedSplits(s => ({ ...s, [v]: { portions: 1, sponsor_id: null } }));
+      } else if (splitMode === 'exact_amount') {
+        setAdvancedSplits(s => ({ ...s, [v]: { portions: 0, sponsor_id: null } }));
+      }
+    }
 
     setParticipants(prev => {
       let next = [...prev];
-      // Tích người mới (người thanh toán hộ luôn phải tham gia)
-      if (v && !next.includes(v)) {
+      if (splitMode === 'pay_for_others') {
+        next = next.filter(p => p !== v);
+      } else if (v && !next.includes(v)) {
         next.push(v);
       }
       return next;
@@ -82,11 +112,34 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
   };
 
   const selectAll = () => {
-    if (participants.length === members.length) {
-      setParticipants(payerId ? [payerId] : []);
+    const validMembers = splitMode === 'pay_for_others' ? members.filter(m => m.id !== payerId) : members;
+    if (participants.length === validMembers.length) {
+      setParticipants(splitMode === 'equal' && payerId ? [payerId] : []);
     } else {
-      setParticipants(members.map(m => m.id));
+      setParticipants(validMembers.map(m => m.id));
+      if (splitMode === 'portions' || splitMode === 'exact_amount') {
+        const newSplits = { ...advancedSplits };
+        validMembers.forEach(m => {
+          if (!newSplits[m.id]) {
+            newSplits[m.id] = { portions: splitMode === 'portions' ? 1 : 0, sponsor_id: null };
+          }
+        });
+        setAdvancedSplits(newSplits);
+      }
     }
+  };
+
+  const getFinalSplits = (): ParticipantSplit[] => {
+    return participants.map(id => {
+      if (splitMode === 'equal' || splitMode === 'pay_for_others') {
+        return { user_id: id, portions: 1, sponsor_id: null };
+      }
+      return {
+        user_id: id,
+        portions: advancedSplits[id]?.portions || 1,
+        sponsor_id: null
+      };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -97,7 +150,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
     try {
       const isDup = await checkDuplicateExpense({
         total_amount: Number(totalAmount.replace(/\D/g, '')),
-        participants: participants,
+        splits: getFinalSplits(),
         date: date
       });
       setIsDuplicate(isDup);
@@ -118,19 +171,11 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
         payer_id: payerId,
         total_amount: Number(totalAmount.replace(/\D/g, '')),
         description: description || 'Ăn trưa',
-        participants: participants,
+        splits: getFinalSplits(),
         date: date
       });
       setOpen(false);
-      // Reset form
-      setTotalAmount('');
-      setPayerId('');
-      setDescription('');
-      setDate(new Date().toISOString().split('T')[0]);
-      setParticipants([]);
-      setSearch('');
-      setPayerSearch('');
-      setShowConfirm(false);
+      // Reset is handled by useEffect
       router.refresh();
     } catch (error: any) {
       alert('Có lỗi xảy ra: ' + (error.message || error));
@@ -138,6 +183,29 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
       setLoading(false);
     }
   };
+
+  const calculatePreview = () => {
+    const total = Number(totalAmount.replace(/\D/g, ''));
+    if (!total) return null;
+    
+    const splits = getFinalSplits();
+    const total_portions = splits.reduce((acc, curr) => acc + curr.portions, 0);
+    if (total_portions === 0) return null;
+
+    const portionPrice = total / total_portions;
+    const netChanges: Record<string, number> = {};
+    netChanges[payerId] = total;
+
+    for (const split of splits) {
+      const cost = split.portions * portionPrice;
+      const responsible_id = split.sponsor_id || split.user_id;
+      netChanges[responsible_id] = (netChanges[responsible_id] || 0) - cost;
+    }
+
+    return { total_portions, portionPrice, netChanges };
+  };
+
+  const preview = showConfirm ? calculatePreview() : null;
 
   return (
     <Dialog open={open} onOpenChange={(val) => {
@@ -151,7 +219,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
         </div>
       </DialogTrigger>
       <DialogContent 
-        className="sm:max-w-md w-[95vw] rounded-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col"
+        className="sm:max-w-lg w-[95vw] rounded-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col"
       >
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="text-xl">
@@ -201,9 +269,12 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                   <div className="flex flex-wrap gap-2">
                     {participants.map(id => {
                       const m = members.find(m => m.id === id);
+                      const adv = (splitMode === 'portions' || splitMode === 'exact_amount') ? advancedSplits[id] : null;
                       return (
                         <span key={id} className="inline-flex px-3 py-1 bg-slate-100 border border-slate-200 rounded-full text-sm text-slate-700">
-                          {m?.name}
+                          {m?.name} 
+                          {adv && splitMode === 'portions' && adv.portions !== 1 ? ` (${adv.portions} suất)` : ''}
+                          {adv && splitMode === 'exact_amount' ? ` - ${adv.portions.toLocaleString('vi-VN')}đ` : ''}
                         </span>
                       );
                     })}
@@ -211,27 +282,37 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                 </div>
                 
                 <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl mt-4 space-y-3">
-                  <div className="text-center">
-                    <div className="text-sm text-slate-500 mb-1">Mỗi người phải trả</div>
-                    <div className="text-xl font-bold text-red-600">
-                      -{participants.length > 0 ? Math.round(Number(totalAmount.replace(/\D/g, '')) / participants.length).toLocaleString('vi-VN') : 0} VNĐ
-                    </div>
-                  </div>
-                  {(() => {
-                    if (participants.length === 0) return null;
-                    const total = Number(totalAmount.replace(/\D/g, ''));
-                    const amountPerPerson = Math.round(total / participants.length);
-                    const payerGetsBack = participants.includes(payerId) ? total - amountPerPerson : total;
-                    const payerName = members.find(m => m.id === payerId)?.name || '';
-                    return (
-                      <div className="text-center pt-3 border-t border-blue-200">
-                        <div className="text-sm text-slate-500 mb-1"><span className="font-semibold">{payerName}</span> sẽ được cộng vào</div>
-                        <div className="text-xl font-bold text-green-600">
-                          +{Math.round(payerGetsBack).toLocaleString('vi-VN')} VNĐ
-                        </div>
+                  {preview && (
+                    <div className="space-y-2">
+                      {splitMode !== 'exact_amount' && (
+                        <>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-slate-500">Tổng số suất:</span>
+                            <span className="font-bold text-slate-700">{preview.total_portions} suất</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm border-b border-blue-200 pb-2">
+                            <span className="text-slate-500">Đơn giá mỗi suất:</span>
+                            <span className="font-bold text-slate-700">{Math.round(preview.portionPrice).toLocaleString('vi-VN')} VNĐ</span>
+                          </div>
+                        </>
+                      )}
+                      <div className="pt-2">
+                        <div className="text-sm font-semibold text-slate-700 mb-2">Thay đổi số dư dự kiến:</div>
+                        {Object.entries(preview.netChanges).map(([uid, change]) => {
+                          if (change === 0) return null;
+                          const mName = members.find(m => m.id === uid)?.name || 'Ai đó';
+                          return (
+                            <div key={uid} className="flex justify-between items-center text-sm py-1">
+                              <span className="text-slate-600">{mName}</span>
+                              <span className={`font-bold ${change > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {change > 0 ? '+' : ''}{Math.round(change).toLocaleString('vi-VN')}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })()}
+                    </div>
+                  )}
                 </div>
               </div>
             </ScrollArea>
@@ -275,6 +356,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                       }
                     }}
                     className="h-12 rounded-xl text-lg font-medium"
+                    readOnly={splitMode === 'exact_amount'}
                   />
                 </div>
 
@@ -345,14 +427,71 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                   />
                 </div>
 
+                <div className="space-y-4 pt-4 border-t border-slate-100">
+                  <div className="space-y-3">
+                    <Label className="text-slate-700 font-semibold text-sm">Chế độ chia tiền</Label>
+                    <RadioGroup 
+                      value={splitMode} 
+                      onValueChange={(val: any) => {
+                        setSplitMode(val);
+                        setAdvancedSplits({});
+                        setTotalAmount('');
+                        if (val === 'pay_for_others') {
+                          setParticipants([]);
+                        } else {
+                          setParticipants(payerId ? [payerId] : []);
+                          if (payerId) {
+                            if (val === 'portions') {
+                              setAdvancedSplits({ [payerId]: { portions: 1, sponsor_id: null } });
+                            } else if (val === 'exact_amount') {
+                              setAdvancedSplits({ [payerId]: { portions: 0, sponsor_id: null } });
+                            }
+                          }
+                        }
+                      }}
+                      className="grid grid-cols-2 gap-3"
+                    >
+                      <Label htmlFor="mode-equal" className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${splitMode === 'equal' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+                        <RadioGroupItem value="equal" id="mode-equal" className="border-slate-300 aria-checked:border-orange-600 aria-checked:bg-orange-600" />
+                        <span className="text-sm font-medium">Chia đều</span>
+                      </Label>
+                      <Label htmlFor="mode-portions" className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${splitMode === 'portions' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+                        <RadioGroupItem value="portions" id="mode-portions" className="border-slate-300 aria-checked:border-orange-600 aria-checked:bg-orange-600" />
+                        <span className="text-sm font-medium">Báo theo số lượng</span>
+                      </Label>
+                      <Label htmlFor="mode-exact-amount" className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${splitMode === 'exact_amount' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+                        <RadioGroupItem value="exact_amount" id="mode-exact-amount" className="border-slate-300 aria-checked:border-orange-600 aria-checked:bg-orange-600" />
+                        <span className="text-sm font-medium">Báo theo giá trị riêng</span>
+                      </Label>
+                      <Label htmlFor="mode-pay-others" className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${splitMode === 'pay_for_others' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+                        <RadioGroupItem value="pay_for_others" id="mode-pay-others" className="border-slate-300 aria-checked:border-orange-600 aria-checked:bg-orange-600" />
+                        <span className="text-sm font-medium">Báo hộ (Không ăn)</span>
+                      </Label>
+                    </RadioGroup>
+                  </div>
+                </div>
+
                 <div className="space-y-3 pt-2">
                   <div className="flex justify-between items-center">
                     <Label className="text-slate-600">Những người tham gia ăn ({participants.length})</Label>
-                    <Button type="button" variant="ghost" size="sm" onClick={selectAll} className="text-orange-600 h-8 px-2">
-                      {participants.length === members.length ? 'Bỏ chọn hết' : 'Chọn tất cả'}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="ghost" size="sm" onClick={selectAll} className="text-orange-600 h-8 px-2">
+                        {participants.length === members.length ? 'Bỏ chọn hết' : 'Chọn tất cả'}
+                      </Button>
+                    </div>
                   </div>
                   
+                  {splitMode === 'exact_amount' && (
+                    <div className="bg-blue-50 text-blue-700 text-sm p-3 rounded-lg border border-blue-100 mb-2">
+                      💡 <b>Nhập số tiền riêng</b> cho từng người. Tổng tiền sẽ tự động được tính.
+                    </div>
+                  )}
+                  {splitMode === 'pay_for_others' && (
+                    <div className="bg-blue-50 text-blue-700 text-sm p-3 rounded-lg border border-blue-100 mb-2">
+                      💡 Danh sách bên dưới đã được <b>loại bỏ</b> tên của người thanh toán (vì người này chỉ trả tiền hộ chứ không ăn).
+                    </div>
+                  )}
+
                   <div className="relative">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input 
@@ -363,36 +502,77 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                     />
                   </div>
 
-                  <div className="border rounded-xl p-2 bg-slate-50/50 max-h-[180px] overflow-y-auto space-y-1">
-                    {filteredMembers.map(member => (
+                  <ScrollArea className="h-[250px] border rounded-xl p-2 bg-slate-50/50">
+                    <div className="space-y-1">
+                    {filteredMembers.map(member => {
+                      const isSelected = participants.includes(member.id);
+                      const defaultPortions = splitMode === 'exact_amount' ? 0 : 1;
+                      const advancedData = advancedSplits[member.id] || { portions: defaultPortions, sponsor_id: null };
+                      return (
                       <div 
                         key={member.id} 
                         id={`participant-container-${member.id}`}
-                        className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-100 transition-colors"
+                        className={`flex flex-col p-3 rounded-lg transition-colors ${isSelected ? 'bg-orange-50/50 border border-orange-100' : 'hover:bg-slate-100'} ${splitMode === 'pay_for_others' && member.id === payerId ? 'opacity-50 pointer-events-none' : ''}`}
                       >
-                        <Checkbox 
-                          id={`participant-${member.id}`} 
-                          checked={participants.includes(member.id)}
-                          onCheckedChange={() => {
-                            if (!isSelectClosing) toggleParticipant(member.id);
-                          }}
-                          className="w-5 h-5 rounded-md data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
-                        />
-                        <label 
-                          htmlFor={`participant-${member.id}`} 
-                          onClick={(e) => {
-                            if (isSelectClosing) e.preventDefault();
-                          }}
-                          className="font-medium text-slate-700 select-none flex-1 cursor-pointer"
-                        >
-                          {member.name}
-                        </label>
+                        <div className="flex items-center space-x-3">
+                          <Checkbox 
+                            id={`participant-${member.id}`} 
+                            checked={isSelected}
+                            disabled={splitMode === 'pay_for_others' && member.id === payerId}
+                            onCheckedChange={() => {
+                              if (!isSelectClosing.current) toggleParticipant(member.id);
+                            }}
+                            className="w-5 h-5 rounded-md data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+                          />
+                          <label 
+                            htmlFor={`participant-${member.id}`} 
+                            onClick={(e) => {
+                              if (isSelectClosing.current) e.preventDefault();
+                            }}
+                            className="font-medium text-slate-700 select-none flex-1 cursor-pointer"
+                          >
+                            {member.name}
+                          </label>
+                        </div>
+                        
+                        {isSelected && (splitMode === 'portions' || splitMode === 'exact_amount') && (
+                          <div className="mt-3 pl-8 space-y-3">
+                            {splitMode === 'portions' && (
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm text-slate-500 w-16">Số suất:</span>
+                                <div className="flex items-center gap-2 bg-white border rounded-lg p-1">
+                                  <button type="button" onClick={() => setAdvancedSplits(s => ({ ...s, [member.id]: { portions: Math.max(1, (s[member.id]?.portions || 1) - 1), sponsor_id: null } }))} className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-600"><Minus className="w-3 h-3"/></button>
+                                  <span className="text-sm font-medium w-6 text-center">{advancedData.portions}</span>
+                                  <button type="button" onClick={() => setAdvancedSplits(s => ({ ...s, [member.id]: { portions: (s[member.id]?.portions || 1) + 1, sponsor_id: null } }))} className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-600"><Plus className="w-3 h-3"/></button>
+                                </div>
+                              </div>
+                            )}
+                            {splitMode === 'exact_amount' && (
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm text-slate-500 w-16">Số tiền:</span>
+                                <div className="flex items-center gap-2">
+                                  <Input 
+                                    placeholder="Ví dụ: 35000"
+                                    value={advancedData.portions ? advancedData.portions.toLocaleString('vi-VN') : ''}
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value.replace(/\D/g, ''));
+                                      setAdvancedSplits(s => ({ ...s, [member.id]: { portions: val, sponsor_id: null } }));
+                                    }}
+                                    className="h-8 w-32 bg-white"
+                                  />
+                                  <span className="text-sm text-slate-500">đ</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    )})}
                     {filteredMembers.length === 0 && (
                       <div className="text-center text-sm text-slate-500 py-4">Không tìm thấy người này.</div>
                     )}
-                  </div>
+                    </div>
+                  </ScrollArea>
                 </div>
 
               </form>

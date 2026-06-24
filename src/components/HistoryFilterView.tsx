@@ -30,6 +30,7 @@ export function HistoryFilterView({
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [editingExpense, setEditingExpense] = useState<TransactionHistory | null>(null);
+  const [viewingExpense, setViewingExpense] = useState<TransactionHistory | null>(null);
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'EXPENSE' | 'NAP_QUY' | 'RUT_QUY' | 'FUND'>(defaultTypeFilter);
   const [dateFilterType, setDateFilterType] = useState('ALL'); // 'ALL', 'CUSTOM'
   const [startDate, setStartDate] = useState('');
@@ -145,6 +146,34 @@ export function HistoryFilterView({
       case 'EXPENSE': return <span className="text-blue-700 font-medium">Báo Cơm</span>;
     }
   };
+
+  const getSplitModeLabel = (tx: TransactionHistory) => {
+    if (tx.type !== 'EXPENSE') return <span className="text-slate-300">-</span>;
+    if (!tx.description || !tx.description.includes('META: ')) {
+      return <span className="text-slate-500 bg-slate-100 px-2 py-1 rounded-md text-xs">Chia đều</span>;
+    }
+
+    try {
+      const metaStr = tx.description.split('META: ')[1];
+      const meta = JSON.parse(metaStr);
+      const splits = meta.splits || [];
+      const participants = tx.participants || [];
+      
+      if (splits.some((s: any) => s.portions >= 100)) {
+        return <span className="text-purple-700 bg-purple-50 border border-purple-200 px-2 py-1 rounded-md text-xs font-medium">Giá trị riêng</span>;
+      }
+      if (splits.some((s: any) => s.portions !== 1)) {
+        return <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-md text-xs font-medium">Theo số lượng</span>;
+      }
+      if (!participants.includes(tx.actor_name)) {
+        return <span className="text-teal-700 bg-teal-50 border border-teal-200 px-2 py-1 rounded-md text-xs font-medium">Báo hộ</span>;
+      }
+      return <span className="text-blue-700 bg-blue-50 border border-blue-200 px-2 py-1 rounded-md text-xs font-medium">Chia đều</span>;
+    } catch (e) {
+      return <span className="text-slate-500 bg-slate-100 px-2 py-1 rounded-md text-xs">Chia đều</span>;
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
@@ -266,6 +295,7 @@ export function HistoryFilterView({
                     <th className="px-5 py-4 font-semibold whitespace-nowrap">Loại</th>
                     <th className="px-5 py-4 font-semibold whitespace-nowrap">Người thao tác</th>
                     <th className="px-5 py-4 font-semibold">Người liên quan</th>
+                    <th className="px-5 py-4 font-semibold whitespace-nowrap">Chế độ</th>
                     <th className="px-5 py-4 font-semibold whitespace-nowrap text-right">Số tiền</th>
                     <th className="px-5 py-4 font-semibold">Ghi chú</th>
                     <th className="px-5 py-4 font-semibold text-right">Thao tác</th>
@@ -297,23 +327,36 @@ export function HistoryFilterView({
                           <span className="text-slate-300">-</span>
                         )}
                       </td>
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        {getSplitModeLabel(tx)}
+                      </td>
                       <td className="px-5 py-4 whitespace-nowrap font-bold text-right text-slate-700">
                         {tx.type === 'RUT_QUY' ? '-' : (tx.type === 'EXPENSE' ? '-' : '+')}
                         {Math.round(tx.amount).toLocaleString('vi-VN')} VNĐ
                       </td>
                       <td className="px-5 py-4 text-slate-600">
-                        {tx.description}
+                        {tx.description?.split(' | META:')[0]}
                       </td>
-                      <td className="px-5 py-4 text-right">
+                      <td className="px-5 py-4 text-right flex items-center justify-end gap-1">
                         {tx.type === 'EXPENSE' && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => setEditingExpense(tx)} 
-                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 h-8"
-                          >
-                            Sửa
-                          </Button>
+                          <>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setViewingExpense(tx)} 
+                              className="text-slate-600 hover:text-slate-800 hover:bg-slate-100 px-2 h-8"
+                            >
+                              Xem
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setEditingExpense(tx)} 
+                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 h-8"
+                            >
+                              Sửa
+                            </Button>
+                          </>
                         )}
                       </td>
                     </tr>
@@ -354,11 +397,17 @@ export function HistoryFilterView({
       </div>
 
       <EditExpenseModal 
-        expense={editingExpense} 
+        expense={editingExpense || viewingExpense} 
         members={members} 
-        open={!!editingExpense} 
-        onOpenChange={(o) => { if (!o) setEditingExpense(null); }} 
+        open={!!(editingExpense || viewingExpense)} 
+        onOpenChange={(o) => { 
+          if (!o) {
+            setEditingExpense(null);
+            setViewingExpense(null);
+          }
+        }} 
         onSuccess={() => router.refresh()}
+        viewOnly={!!viewingExpense}
       />
     </div>
   );

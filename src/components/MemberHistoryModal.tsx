@@ -26,13 +26,14 @@ export function MemberHistoryModal({
   const [history, setHistory] = useState<MemberTransaction[] | null>(null);
   const [error, setError] = useState('');
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
+  const [viewingExpense, setViewingExpense] = useState<any | null>(null);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
-    if (open && member) {
+    if (open && member?.id) {
       setLoading(true);
       setHistory(null);
       setPinCode('');
@@ -47,7 +48,7 @@ export function MemberHistoryModal({
         }
       });
     }
-  }, [open, member]);
+  }, [open, member?.id]);
 
   const fetchHistory = async (pin: string | null) => {
     setLoading(true);
@@ -76,6 +77,23 @@ export function MemberHistoryModal({
       const details = await getExpenseDetails(realId);
       if (details) {
         setEditingExpense(details);
+      } else {
+        alert('Không tìm thấy hóa đơn này.');
+      }
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewClick = async (txId: string) => {
+    setLoading(true);
+    try {
+      const realId = txId.replace('_split', '');
+      const details = await getExpenseDetails(realId);
+      if (details) {
+        setViewingExpense(details);
       } else {
         alert('Không tìm thấy hóa đơn này.');
       }
@@ -162,7 +180,7 @@ export function MemberHistoryModal({
                                 {tx.type === 'PAID' && <Wallet className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
                                 {tx.type === 'PARTICIPATED' && <UtensilsCrossed className="w-3.5 h-3.5 text-orange-500 shrink-0" />}
                                 {(tx.type === 'NAP_QUY' || tx.type === 'RUT_QUY') && <History className="w-3.5 h-3.5 text-purple-500 shrink-0" />}
-                                <span className="font-medium text-slate-700">{tx.description}</span>
+                                <span className="font-medium text-slate-700">{tx.description?.split(' | META:')[0]}</span>
                               </div>
                             </td>
                             <td className="px-4 py-3 text-center whitespace-nowrap text-slate-600 text-xs">
@@ -185,14 +203,24 @@ export function MemberHistoryModal({
                             </td>
                             <td className="px-2 py-3 text-right">
                               {tx.type === 'PAID' && (
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  onClick={() => handleEditClick(tx.id)} 
-                                  className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 h-8"
-                                >
-                                  Sửa
-                                </Button>
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => handleViewClick(tx.id)} 
+                                    className="text-slate-600 hover:text-slate-800 hover:bg-slate-100 px-2 h-8"
+                                  >
+                                    Xem
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => handleEditClick(tx.id)} 
+                                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 h-8"
+                                  >
+                                    Sửa
+                                  </Button>
+                                </div>
                               )}
                             </td>
                           </tr>
@@ -234,13 +262,19 @@ export function MemberHistoryModal({
         </div>
       </DialogContent>
       <EditExpenseModal
-        expense={editingExpense}
+        expense={editingExpense || viewingExpense}
         members={members}
-        open={!!editingExpense}
-        onOpenChange={(o) => { if (!o) setEditingExpense(null); }}
+        open={!!(editingExpense || viewingExpense)}
+        onOpenChange={(o) => { 
+          if (!o) {
+            setEditingExpense(null);
+            setViewingExpense(null);
+          }
+        }}
         updaterId={member.id}
         pinCode={pinCode}
         onSuccess={() => fetchHistory(pinCode)}
+        viewOnly={!!viewingExpense}
       />
     </Dialog>
   );

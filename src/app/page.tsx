@@ -47,7 +47,18 @@ export default async function Home() {
             <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Quỹ Ăn Trưa</h1>
             <p className="text-sm text-slate-500 font-medium mt-0.5">Chia tiền nhanh chóng, sòng phẳng</p>
           </div>
-          <NotificationFeed />
+          <div className="flex items-center gap-3">
+            {isAdmin ? (
+              <form action={logoutAdmin}>
+                <button type="submit" className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 rounded-lg transition-colors font-medium">
+                  Đăng xuất
+                </button>
+              </form>
+            ) : (
+              <LoginModal />
+            )}
+            <NotificationFeed />
+          </div>
         </div>
         
         <div className="flex flex-col gap-3">
@@ -88,17 +99,6 @@ export default async function Home() {
             <p className="text-slate-500">Chưa có dữ liệu thành viên.</p>
             <p className="text-xs text-slate-400 mt-2">Vui lòng kiểm tra lại kết nối Supabase.</p>
           </div>
-        )}
-      </div>
-      <div className="p-5 mt-4 flex justify-center">
-        {isAdmin ? (
-          <form action={logoutAdmin}>
-            <button type="submit" className="text-sm text-slate-500 hover:text-slate-800 transition-colors">
-              Đăng xuất
-            </button>
-          </form>
-        ) : (
-          <LoginModal />
         )}
       </div>
     </main>
