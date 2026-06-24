@@ -261,6 +261,12 @@ export function MemberHistoryModal({
           ) : null}
         </div>
       </DialogContent>
+      {loading && history && (
+        <div className="fixed inset-0 bg-white/60 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
+          <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
+          <p className="text-sm font-medium text-slate-600">Đang tải dữ liệu...</p>
+        </div>
+      )}
       <EditExpenseModal
         expense={editingExpense || viewingExpense}
         members={members}

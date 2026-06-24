@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { TransactionHistory } from '@/app/actions/fund';
-import { History, ArrowDownToLine, ArrowUpFromLine, UtensilsCrossed, Search, ArrowLeft, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { History, ArrowDownToLine, ArrowUpFromLine, UtensilsCrossed, Search, ArrowLeft, ChevronLeft, ChevronRight, Download, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import Link from 'next/link';
@@ -38,10 +38,35 @@ export function HistoryFilterView({
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 15;
+  const [loadingAction, setLoadingAction] = useState(false);
 
+  const handleViewClick = async (tx: TransactionHistory) => {
+    if (tx.type !== 'EXPENSE') return;
+    setLoadingAction(true);
+    try {
+      const { getExpenseDetails } = await import('@/app/actions/expense');
+      const details = await getExpenseDetails(tx.id);
+      if (details) setViewingExpense(details);
+    } catch (err: any) {
+      alert('Lỗi tải chi tiết: ' + (err.message || err));
+    } finally {
+      setLoadingAction(false);
+    }
+  };
 
-
-  const filteredHistory = useMemo(() => {
+  const handleEditClick = async (tx: TransactionHistory) => {
+    if (tx.type !== 'EXPENSE') return;
+    setLoadingAction(true);
+    try {
+      const { getExpenseDetails } = await import('@/app/actions/expense');
+      const details = await getExpenseDetails(tx.id);
+      if (details) setEditingExpense(details);
+    } catch (err: any) {
+      alert('Lỗi tải chi tiết: ' + (err.message || err));
+    } finally {
+      setLoadingAction(false);
+    }
+  };  const filteredHistory = useMemo(() => {
     return initialHistory.filter(tx => {
       // 1. Filter by Search
       if (search) {
@@ -343,7 +368,7 @@ export function HistoryFilterView({
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              onClick={() => setViewingExpense(tx)} 
+                              onClick={() => handleViewClick(tx)} 
                               className="text-slate-600 hover:text-slate-800 hover:bg-slate-100 px-2 h-8"
                             >
                               Xem
@@ -351,7 +376,7 @@ export function HistoryFilterView({
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              onClick={() => setEditingExpense(tx)} 
+                              onClick={() => handleEditClick(tx)} 
                               className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 h-8"
                             >
                               Sửa
@@ -393,8 +418,15 @@ export function HistoryFilterView({
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
-        )}
+        </div>
       </div>
+      
+      {loadingAction && (
+        <div className="fixed inset-0 bg-white/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+          <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
+          <p className="text-sm font-medium text-slate-600">Đang tải dữ liệu...</p>
+        </div>
+      )}
 
       <EditExpenseModal 
         expense={editingExpense || viewingExpense} 
