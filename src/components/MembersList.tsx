@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Member } from '@/app/actions/expense';
 import { Input } from './ui/input';
-import { Search, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, ArrowRight, ArrowDownUp } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { MemberHistoryModal } from './MemberHistoryModal';
@@ -12,6 +13,7 @@ import girlAvatar from '@/asset/girl.png';
 
 export function MembersList({ members }: { members: Member[] }) {
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('default');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -26,7 +28,21 @@ export function MembersList({ members }: { members: Member[] }) {
     }
   }, [members, selectedMember]);
 
-  const filteredMembers = members.filter(m => 
+  let sortedMembers = [...members];
+  if (sortBy === 'balance_asc') {
+    sortedMembers.sort((a, b) => a.balance - b.balance);
+  } else if (sortBy === 'balance_desc') {
+    sortedMembers.sort((a, b) => b.balance - a.balance);
+  } else if (sortBy === 'meals_asc') {
+    sortedMembers.sort((a, b) => (a.meal_count || 0) - (b.meal_count || 0));
+  } else if (sortBy === 'meals_desc') {
+    sortedMembers.sort((a, b) => (b.meal_count || 0) - (a.meal_count || 0));
+  } else {
+    // default
+    sortedMembers.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  const filteredMembers = sortedMembers.filter(m => 
     m.name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -49,14 +65,33 @@ export function MembersList({ members }: { members: Member[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input 
-          placeholder="Tìm kiếm thành viên..." 
-          value={search}
-          onChange={e => handleSearch(e.target.value)}
-          className="pl-9 h-12 text-base rounded-xl shadow-sm"
-        />
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Tìm kiếm thành viên..." 
+            value={search}
+            onChange={e => handleSearch(e.target.value)}
+            className="pl-9 h-12 text-base rounded-xl shadow-sm"
+          />
+        </div>
+        <div className="w-full sm:w-[220px] shrink-0">
+          <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setCurrentPage(1); }}>
+            <SelectTrigger className="h-12 rounded-xl shadow-sm bg-white border-slate-200">
+              <div className="flex items-center gap-2">
+                <ArrowDownUp className="w-4 h-4 text-slate-500" />
+                <SelectValue placeholder="Sắp xếp theo" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Tên (A-Z)</SelectItem>
+              <SelectItem value="balance_desc">Số dư: Cao nhất</SelectItem>
+              <SelectItem value="balance_asc">Số dư: Thấp nhất</SelectItem>
+              <SelectItem value="meals_desc">Số lần ăn: Nhiều nhất</SelectItem>
+              <SelectItem value="meals_asc">Số lần ăn: Ít nhất</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid gap-3">
