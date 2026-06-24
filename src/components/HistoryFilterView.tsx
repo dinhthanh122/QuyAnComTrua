@@ -418,7 +418,7 @@ export function HistoryFilterView({
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
-        </div>
+        )}
       </div>
       
       {loadingAction && (
