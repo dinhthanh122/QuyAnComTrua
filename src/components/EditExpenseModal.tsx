@@ -431,10 +431,10 @@ export function EditExpenseModal({
                     <Label className="text-slate-600">Tham gia ({participants.length})</Label>
                     {!viewOnly && <Button type="button" variant="ghost" size="sm" onClick={selectAll} className="text-orange-600">Chọn tất cả</Button>}
                   </div>
-                  <Input placeholder="Tìm tên..." value={search} onChange={e => setSearch(e.target.value)} className="h-10 rounded-lg bg-slate-50" />
-                  <ScrollArea className="h-[200px] border rounded-xl p-2 bg-slate-50">
+                  {!viewOnly && <Input placeholder="Tìm tên..." value={search} onChange={e => setSearch(e.target.value)} className="h-10 rounded-lg bg-slate-50" />}
+                  <ScrollArea className={`${viewOnly ? 'max-h-[300px]' : 'h-[200px]'} border rounded-xl p-2 bg-slate-50`}>
                     <div className="space-y-1">
-                    {filteredMembers.map(member => {
+                    {(viewOnly ? filteredMembers.filter(m => participants.includes(m.id)) : filteredMembers).map(member => {
                       const isSelected = participants.includes(member.id);
                       const defaultPortions = splitMode === 'exact_amount' ? 0 : 1;
                       const advancedData = advancedSplits[member.id] || { portions: defaultPortions, sponsor_id: null };

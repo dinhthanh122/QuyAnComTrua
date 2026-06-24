@@ -58,7 +58,8 @@ export function FundOverviewCard({ members }: { members: Member[] }) {
           <span className="text-xs text-slate-400 font-semibold bg-slate-800/50 px-2 py-1 rounded">Đơn vị: k = 1.000 VNĐ</span>
         </div>
         
-        <div className="flex h-72 items-center relative w-full pt-6 pb-8">
+        <div className="overflow-x-auto w-full pb-4">
+          <div className="flex h-72 items-center relative w-full min-w-[480px] pt-6 pb-8 px-2">
           {/* Zero Line */}
           <div className="absolute w-full h-[1px] bg-slate-600/50 top-1/2 left-0 z-0" />
           
@@ -115,6 +116,7 @@ export function FundOverviewCard({ members }: { members: Member[] }) {
               </div>
             );
           })}
+        </div>
         </div>
       </CardContent>
     </Card>
