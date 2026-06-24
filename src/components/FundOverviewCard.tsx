@@ -59,7 +59,7 @@ export function FundOverviewCard({ members }: { members: Member[] }) {
         </div>
         
         <div className="overflow-x-auto w-full pb-4">
-          <div className="flex h-72 items-center relative w-full min-w-[480px] pt-6 pb-8 px-2">
+          <div className="flex h-72 items-center relative w-full min-w-[600px] pt-6 pb-8 px-2">
           {/* Zero Line */}
           <div className="absolute w-full h-[1px] bg-slate-600/50 top-1/2 left-0 z-0" />
           
@@ -110,7 +110,7 @@ export function FundOverviewCard({ members }: { members: Member[] }) {
                 )}
 
                 {/* Name Label */}
-                <div className="absolute -bottom-8 text-xs text-slate-400 font-bold truncate w-[120%] text-center">
+                <div className="absolute -bottom-8 text-[10px] text-slate-400 font-bold truncate w-[120%] text-center">
                   {getShortName(d.name)}
                 </div>
               </div>
