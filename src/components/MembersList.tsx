@@ -75,12 +75,20 @@ export function MembersList({ members }: { members: Member[] }) {
             className="pl-9 h-12 text-base rounded-xl shadow-sm"
           />
         </div>
-        <div className="w-full sm:w-[220px] shrink-0">
+        <div className="w-full sm:w-[260px] shrink-0">
           <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setCurrentPage(1); }}>
-            <SelectTrigger className="h-12 rounded-xl shadow-sm bg-white border-slate-200">
+            <SelectTrigger className="h-12 text-base rounded-xl shadow-sm bg-white border-slate-200">
               <div className="flex items-center gap-2">
-                <ArrowDownUp className="w-4 h-4 text-slate-500" />
-                <SelectValue placeholder="Sắp xếp theo" />
+                <ArrowDownUp className="w-5 h-5 text-slate-500" />
+                <SelectValue placeholder="Sắp xếp theo">
+                  {{
+                    'default': 'Tên (A-Z)',
+                    'balance_desc': 'Số dư: Cao nhất',
+                    'balance_asc': 'Số dư: Thấp nhất',
+                    'meals_desc': 'Số lần ăn: Nhiều nhất',
+                    'meals_asc': 'Số lần ăn: Ít nhất'
+                  }[sortBy]}
+                </SelectValue>
               </div>
             </SelectTrigger>
             <SelectContent>
