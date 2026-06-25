@@ -86,6 +86,7 @@ export async function getMembers(): Promise<Member[]> {
           ...m,
           email: maskedEmail,
           phone: '***',
+          pin_code: undefined,
           isMasked: true,
         };
       }

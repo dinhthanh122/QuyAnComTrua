@@ -181,59 +181,79 @@ export function ManageMembersModal({ members }: { members: Member[] }) {
           {paginatedMembers.map(m => (
             <div key={m.id} className="flex items-center justify-between p-3 border rounded-xl bg-slate-50">
               {editingId === m.id ? (
-                <div className="flex items-center flex-1 gap-2">
-                  <div className="flex flex-col flex-1 gap-2 w-full">
-                    <div className="flex gap-2">
+                <div className="flex-1 flex items-start gap-2">
+                  <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden shrink-0 mt-1 flex items-center justify-center">
+                    {editGender === 'FEMALE' ? (
+                      <img src="/asset/girl.png" alt="Nữ" className="w-full h-full object-cover" />
+                    ) : (
+                      <img src="/asset/boy.png" alt="Nam" className="w-full h-full object-cover" />
+                    )}
+                  </div>
+                  <div className="flex-1 grid grid-cols-1 gap-y-3">
+                    <div className="space-y-1">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider ml-1">Họ và tên</span>
                       <Input 
                         value={editName}
                         onChange={e => setEditName(e.target.value)}
-                        className="h-9 flex-1"
+                        className="h-9 bg-white"
                         placeholder="Tên thành viên..."
                         autoFocus
                       />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider ml-1">Giới tính</span>
                       <select
                         value={editGender}
                         onChange={e => setEditGender(e.target.value)}
-                        className="h-9 w-24 rounded-md border border-slate-200 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950"
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950"
                       >
                         <option value="MALE">Nam</option>
                         <option value="FEMALE">Nữ</option>
                       </select>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="space-y-1">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider ml-1">Email</span>
                       <Input 
                         value={editEmail}
                         onChange={e => setEditEmail(e.target.value)}
-                        className="h-9 flex-1"
+                        className="h-9 bg-white"
                         placeholder="Email..."
                         type="email"
                       />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider ml-1">Số điện thoại</span>
                       <Input 
                         value={editPhone}
                         onChange={e => setEditPhone(e.target.value.replace(/\D/g, ''))}
-                        className="h-9 flex-1"
+                        className="h-9 bg-white"
                         placeholder="SĐT..."
                       />
                     </div>
-                    <div className="flex gap-2">
-                      <Input 
-                        value={editPinCode}
-                        onChange={e => setEditPinCode(e.target.value.replace(/\D/g, ''))}
-                        className="h-9 w-24 text-center tracking-widest font-mono"
-                        placeholder="Mã PIN"
-                        maxLength={6}
-                        required
-                      />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider ml-1">Mã PIN (6 số)</span>
+                        <Input 
+                          value={editPinCode}
+                          onChange={e => setEditPinCode(e.target.value.replace(/\D/g, ''))}
+                          className="h-9 text-center tracking-widest font-mono font-bold text-blue-600 bg-white"
+                          placeholder="Mã PIN"
+                          maxLength={6}
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col justify-end pb-0">
+                        <label className="text-sm font-medium text-slate-600 flex items-center justify-center gap-2 cursor-pointer bg-white h-9 border border-slate-200 rounded-md w-full hover:bg-slate-50 transition-colors">
+                          <input 
+                            type="checkbox" 
+                            checked={editReceiveNotifs}
+                            onChange={e => setEditReceiveNotifs(e.target.checked)}
+                            className="rounded border-slate-300 text-blue-600 w-4 h-4"
+                          />
+                          Nhận email
+                        </label>
+                      </div>
                     </div>
-                    <label className="text-sm text-slate-600 flex items-center gap-2 cursor-pointer mt-1">
-                      <input 
-                        type="checkbox" 
-                        checked={editReceiveNotifs}
-                        onChange={e => setEditReceiveNotifs(e.target.checked)}
-                        className="rounded border-slate-300 text-blue-600 w-3 h-3"
-                      />
-                      Nhận email
-                    </label>
                   </div>
                   <Button size="sm" variant="ghost" onClick={() => handleSaveEdit(m.id)} disabled={loading} className="px-2 text-blue-600">
                     <Check className="w-4 h-4" />
