@@ -21,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
+    <html lang="en" style={{ fontSize: '17px', fontFamily: '"Google Sans", Arial, sans-serif' }}>
       <body className="antialiased">
         {children}
       </body>

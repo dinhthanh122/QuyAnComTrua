@@ -12,8 +12,8 @@
 
 @layer base {
   .theme {
-    --font-heading: "Times New Roman", Times, serif;
-    --font-sans: "Times New Roman", Times, serif;
+    --font-heading: "Google Sans", Arial, sans-serif;
+    --font-sans: "Google Sans", Arial, sans-serif;
   }
   :root {
     --background: oklch(1 0 0);
@@ -89,6 +89,7 @@
     @apply bg-background text-foreground;
   }
   html {
-    font-family: "Times New Roman", Times, serif;
+    font-size: 17px;
+    font-family: "Google Sans", Arial, sans-serif;
   }
 }
