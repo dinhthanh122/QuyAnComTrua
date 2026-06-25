@@ -38,8 +38,8 @@ export function MembersList({ members }: { members: Member[] }) {
   } else if (sortBy === 'meals_desc') {
     sortedMembers.sort((a, b) => (b.meal_count || 0) - (a.meal_count || 0));
   } else {
-    // default
-    sortedMembers.sort((a, b) => a.name.localeCompare(b.name));
+    // default: do not re-sort, keep the database order which is already sorted by name
+    // This prevents hydration mismatches due to localeCompare differences between Postgres/Node/Browser.
   }
 
   const filteredMembers = sortedMembers.filter(m => 

@@ -15,7 +15,7 @@ export type SystemConfig = {
   expense_warning_thresholds?: WarningThreshold[];
 };
 
-export const DEFAULT_THRESHOLDS: WarningThreshold[] = [
+const DEFAULT_THRESHOLDS: WarningThreshold[] = [
   {
     id: 'default-1',
     amount: 100000,

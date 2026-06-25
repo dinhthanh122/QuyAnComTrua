@@ -179,7 +179,8 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
         total_amount: Number(totalAmount.replace(/\D/g, '')),
         description: description || 'Ăn trưa',
         splits: getFinalSplits(),
-        date: date
+        date: date,
+        split_mode: splitMode
       });
       setOpen(false);
       // Reset is handled by useEffect

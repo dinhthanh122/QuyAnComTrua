@@ -201,7 +201,8 @@ export function EditExpenseModal({
         description: description,
         splits: getFinalSplits(),
         updater_id: updaterId,
-        pin_code: updaterId ? inputPin : undefined
+        pin_code: inputPin,
+        split_mode: splitMode
       });
       onOpenChange(false);
       setShowConfirm(false);

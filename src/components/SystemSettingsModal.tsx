@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Settings, Plus, Trash2, Save, Loader2 } from 'lucide-react';
-import { getSystemConfig, saveSystemConfig, SystemConfig, WarningThreshold, DEFAULT_THRESHOLDS } from '@/app/actions/system_settings';
+import { getSystemConfig, saveSystemConfig, SystemConfig, WarningThreshold } from '@/app/actions/system_settings';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Label } from './ui/label';

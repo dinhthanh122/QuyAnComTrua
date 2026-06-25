@@ -88,6 +88,7 @@ export async function addExpense(data: {
   description: string;
   splits: ParticipantSplit[];
   date?: string;
+  split_mode?: 'equal' | 'portions' | 'exact_amount' | 'pay_for_others';
 }) {
   const total_portions = data.splits.reduce((acc, curr) => acc + curr.portions, 0);
   if (total_portions <= 0) throw new Error('Số suất ăn phải lớn hơn 0.');
@@ -175,26 +176,15 @@ export async function addExpense(data: {
   }]);
 
   // Lấy email những người nhận thông báo
-  const { data: membersToNotify } = await supabase
-    .from('members')
-    .select('email, name')
-    .eq('receive_notifications', true)
-    .not('email', 'is', null)
-    .not('email', 'eq', '');
-
-  if (membersToNotify && membersToNotify.length > 0) {
-    const emails = membersToNotify.map(m => m.email as string);
-    await sendEmail({
-      to: emails,
-      subject: `[Quỹ Ăn Trưa] Báo cơm mới từ ${payerName}`,
-      html: `
-        <h3>Chào bạn,</h3>
-        <p>${content}</p>
-        <p>Chi tiết: ${data.description}</p>
-        <p>Vui lòng kiểm tra lại số dư tài khoản của bạn trên hệ thống.</p>
-      `
-    });
-  }
+  await sendExpenseEmail(
+    payerName, 
+    data.total_amount, 
+    data.description || 'Ăn trưa', 
+    data.splits, 
+    portionPrice, 
+    data.split_mode || 'equal', 
+    false
+  );
 
   revalidatePath('/', 'layout');
 }
@@ -283,6 +273,7 @@ export async function updateExpense(data: {
   splits: ParticipantSplit[];
   updater_id?: string;
   pin_code?: string;
+  split_mode?: 'equal' | 'portions' | 'exact_amount' | 'pay_for_others';
 }) {
   const isAdmin = await checkIsAdmin();
   if (!isAdmin) {
@@ -397,26 +388,15 @@ export async function updateExpense(data: {
   }]);
 
   // Gửi email thông báo
-  const { data: membersToNotify } = await supabase
-    .from('members')
-    .select('email, name')
-    .eq('receive_notifications', true)
-    .not('email', 'is', null)
-    .not('email', 'eq', '');
-
-  if (membersToNotify && membersToNotify.length > 0) {
-    const emails = membersToNotify.map(m => m.email as string);
-    await sendEmail({
-      to: emails,
-      subject: `[Quỹ Ăn Trưa] Cập nhật hóa đơn: ${data.total_amount.toLocaleString()}đ`,
-      html: `
-        <h3>Chào bạn,</h3>
-        <p>${content}</p>
-        <p>Chi tiết ghi chú: ${data.description}</p>
-        <p>Hệ thống đã tự động tính toán lại và hoàn trả/trừ số dư tương ứng với sự thay đổi mới. Vui lòng kiểm tra lại số dư tài khoản của bạn trên hệ thống.</p>
-      `
-    });
-  }
+  await sendExpenseEmail(
+    payerName, 
+    data.total_amount, 
+    data.description || 'Ăn trưa', 
+    data.splits, 
+    portionPrice, 
+    data.split_mode || 'equal', 
+    true
+  );
 
   revalidatePath('/');
 }
@@ -574,4 +554,87 @@ export async function deleteExpense(data: {
   }
 
   revalidatePath('/', 'layout');
+}
+
+import { getEmailConfig } from './email_settings';
+
+async function sendExpenseEmail(
+  payerName: string,
+  totalAmount: number,
+  description: string,
+  splits: ParticipantSplit[],
+  portionPrice: number,
+  splitMode: 'equal' | 'portions' | 'exact_amount' | 'pay_for_others',
+  isUpdate: boolean
+) {
+  const config = await getEmailConfig();
+  if (!config) return;
+
+  const { data: membersToNotify } = await supabase
+    .from('members')
+    .select('id, email, name')
+    .eq('receive_notifications', true)
+    .not('email', 'is', null)
+    .not('email', 'eq', '');
+
+  if (!membersToNotify || membersToNotify.length === 0) return;
+
+  const emails = membersToNotify.map(m => m.email as string);
+
+  const template = config.templates?.[splitMode];
+  if (!template || !template.subject || !template.html) return;
+
+  // Create participants_table HTML
+  const { data: allMembers } = await supabase.from('members').select('id, name');
+  const nameMap = new Map((allMembers || []).map(m => [m.id, m.name]));
+
+  let tableHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; max-width: 600px; margin-top: 15px; border-color: #e5e7eb;">
+    <thead>
+      <tr style="background-color: #f3f4f6;">
+        <th style="text-align: left;">Thành viên</th>
+        <th style="text-align: right;">Số tiền trừ</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+  for (const split of splits) {
+    const cost = split.portions * portionPrice;
+    const name = nameMap.get(split.user_id) || 'Unknown';
+    const sponsorName = split.sponsor_id ? (nameMap.get(split.sponsor_id) || 'Unknown') : null;
+    
+    let displayCost = cost;
+    let label = name;
+    if (sponsorName && sponsorName !== name) {
+        label = `${name} (Được báo hộ bởi ${sponsorName})`;
+    }
+    
+    tableHtml += `
+      <tr>
+        <td>${label}</td>
+        <td style="text-align: right; font-weight: bold; color: #dc2626;">-${displayCost.toLocaleString('vi-VN')}đ</td>
+      </tr>
+    `;
+  }
+  tableHtml += `</tbody></table>`;
+
+  const totalStr = `${totalAmount.toLocaleString('vi-VN')}đ`;
+
+  const subject = (isUpdate ? '[Cập nhật] ' : '') + template.subject
+    .replace(/\{\{payer_name\}\}/g, payerName)
+    .replace(/\{\{total_amount\}\}/g, totalStr)
+    .replace(/\{\{description\}\}/g, description)
+    .replace(/\{\{participant_count\}\}/g, splits.length.toString());
+
+  const html = (isUpdate ? '<p style="color:red; font-weight:bold; font-size:16px;">⚠️ ĐÂY LÀ THÔNG BÁO CẬP NHẬT HÓA ĐƠN CŨ. SỐ DƯ ĐÃ ĐƯỢC HỆ THỐNG TÍNH TOÁN LẠI.</p>' : '') + template.html
+    .replace(/\{\{payer_name\}\}/g, payerName)
+    .replace(/\{\{total_amount\}\}/g, totalStr)
+    .replace(/\{\{description\}\}/g, description)
+    .replace(/\{\{participant_count\}\}/g, splits.length.toString())
+    .replace(/\{\{participants_table\}\}/g, tableHtml);
+
+  await sendEmail({
+    to: emails,
+    subject,
+    html,
+  });
 }
