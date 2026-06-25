@@ -31,7 +31,8 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
   const [payerSearch, setPayerSearch] = useState('');
   
   const [participants, setParticipants] = useState<string[]>([]);
-  const [splitMode, setSplitMode] = useState<'equal' | 'portions' | 'exact_amount' | 'pay_for_others'>('equal');
+  const [splitMode, setSplitMode] = useState<'equal' | 'portions' | 'exact_amount'>('equal');
+  const [isPayForOthers, setIsPayForOthers] = useState(false);
   const [advancedSplits, setAdvancedSplits] = useState<Record<string, { portions: number, sponsor_id: string | null }>>({});
   const [warningThresholds, setWarningThresholds] = useState<WarningThreshold[]>([]);
 
@@ -45,6 +46,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
       setPayerSearch('');
       setParticipants([]);
       setSplitMode('equal');
+      setIsPayForOthers(false);
       setAdvancedSplits({});
       getSystemConfig().then(cfg => {
         if (cfg && cfg.expense_warning_thresholds) {
@@ -73,7 +75,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
 
   const toggleParticipant = (id: string) => {
     if (isSelectClosing.current) return;
-    if (splitMode === 'pay_for_others' && id === payerId) return;
+    if (isPayForOthers && id === payerId) return;
 
     setParticipants(prev => {
       if (prev.includes(id)) {
@@ -93,7 +95,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
     isSelectClosing.current = true;
     setTimeout(() => isSelectClosing.current = false, 200);
 
-    if (splitMode !== 'pay_for_others' && v && !participants.includes(v)) {
+    if (!isPayForOthers && v && !participants.includes(v)) {
       if (splitMode === 'portions') {
         setAdvancedSplits(s => ({ ...s, [v]: { portions: 1, sponsor_id: null } }));
       } else if (splitMode === 'exact_amount') {
@@ -103,7 +105,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
 
     setParticipants(prev => {
       let next = [...prev];
-      if (splitMode === 'pay_for_others') {
+      if (isPayForOthers) {
         next = next.filter(p => p !== v);
       } else if (v && !next.includes(v)) {
         next.push(v);
@@ -121,9 +123,9 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
   };
 
   const selectAll = () => {
-    const validMembers = splitMode === 'pay_for_others' ? members.filter(m => m.id !== payerId) : members;
+    const validMembers = isPayForOthers ? members.filter(m => m.id !== payerId) : members;
     if (participants.length === validMembers.length) {
-      setParticipants(splitMode === 'equal' && payerId ? [payerId] : []);
+      setParticipants(!isPayForOthers && payerId ? [payerId] : []);
     } else {
       setParticipants(validMembers.map(m => m.id));
       if (splitMode === 'portions' || splitMode === 'exact_amount') {
@@ -140,7 +142,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
 
   const getFinalSplits = (): ParticipantSplit[] => {
     return participants.map(id => {
-      if (splitMode === 'equal' || splitMode === 'pay_for_others') {
+      if (splitMode === 'equal') {
         return { user_id: id, portions: 1, sponsor_id: null };
       }
       return {
@@ -186,7 +188,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
         description: description || 'Ăn trưa',
         splits: getFinalSplits(),
         date: date,
-        split_mode: splitMode
+        split_mode: isPayForOthers ? 'pay_for_others' : splitMode
       });
       setShowSuccessDialog(true);
       // Reset is handled by useEffect
@@ -474,6 +476,44 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                       </div>
                     </SelectContent>
                   </Select>
+                  
+                  <div className="flex items-center space-x-3 pt-2 pl-1 cursor-pointer" onClick={() => {
+                    const nextVal = !isPayForOthers;
+                    setIsPayForOthers(nextVal);
+                    if (nextVal) {
+                      setParticipants(prev => prev.filter(p => p !== payerId));
+                    } else if (payerId && !participants.includes(payerId)) {
+                      setParticipants(prev => [...prev, payerId]);
+                      if (splitMode === 'portions') {
+                        setAdvancedSplits(s => ({ ...s, [payerId]: { portions: 1, sponsor_id: null } }));
+                      } else if (splitMode === 'exact_amount') {
+                        setAdvancedSplits(s => ({ ...s, [payerId]: { portions: 0, sponsor_id: null } }));
+                      }
+                    }
+                  }}>
+                    <Checkbox 
+                      id="is-pay-for-others" 
+                      checked={isPayForOthers}
+                      onCheckedChange={(checked) => {
+                        const nextVal = !!checked;
+                        setIsPayForOthers(nextVal);
+                        if (nextVal) {
+                          setParticipants(prev => prev.filter(p => p !== payerId));
+                        } else if (payerId && !participants.includes(payerId)) {
+                          setParticipants(prev => [...prev, payerId]);
+                          if (splitMode === 'portions') {
+                            setAdvancedSplits(s => ({ ...s, [payerId]: { portions: 1, sponsor_id: null } }));
+                          } else if (splitMode === 'exact_amount') {
+                            setAdvancedSplits(s => ({ ...s, [payerId]: { portions: 0, sponsor_id: null } }));
+                          }
+                        }
+                      }}
+                      className="w-5 h-5 rounded data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+                    />
+                    <Label htmlFor="is-pay-for-others" className="text-sm font-medium text-slate-700 cursor-pointer select-none">
+                      Báo hộ (Người trả tiền KHÔNG ăn)
+                    </Label>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -514,10 +554,6 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                         <RadioGroupItem value="exact_amount" id="mode-exact-amount" className="border-slate-300 aria-checked:border-orange-600 aria-checked:bg-orange-600" />
                         <span className="text-sm font-medium">Báo theo giá trị riêng</span>
                       </Label>
-                      <Label htmlFor="mode-pay-others" className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${splitMode === 'pay_for_others' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
-                        <RadioGroupItem value="pay_for_others" id="mode-pay-others" className="border-slate-300 aria-checked:border-orange-600 aria-checked:bg-orange-600" />
-                        <span className="text-sm font-medium">Báo hộ (Không ăn)</span>
-                      </Label>
                     </RadioGroup>
                   </div>
                 </div>
@@ -537,9 +573,10 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                       💡 <b>Nhập số tiền riêng</b> cho từng người. Tổng tiền sẽ tự động được tính.
                     </div>
                   )}
-                  {splitMode === 'pay_for_others' && (
-                    <div className="bg-blue-50 text-blue-700 text-sm p-3 rounded-lg border border-blue-100 mb-2">
-                      💡 Danh sách bên dưới đã được <b>loại bỏ</b> tên của người thanh toán (vì người này chỉ trả tiền hộ chứ không ăn).
+                  {isPayForOthers && (
+                    <div className="p-3 bg-slate-50 text-sm text-slate-600 rounded-xl border border-slate-100 flex items-start gap-2">
+                      <span className="text-yellow-600">💡</span>
+                      <span>Danh sách bên dưới đã được <strong>loại bỏ</strong> tên của người thanh toán (vì người này chỉ trả tiền hộ chứ không ăn).</span>
                     </div>
                   )}
 
@@ -553,6 +590,22 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                     />
                   </div>
 
+                  {participants.length > 0 && (
+                    <div className="bg-orange-50/50 border border-orange-100 rounded-xl p-3 mt-1 mb-1">
+                      <div className="text-xs font-semibold text-orange-800 mb-2 uppercase tracking-wide">Đã chọn ({participants.length})</div>
+                      <div className="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto">
+                        {participants.map(id => {
+                        const m = members.find(m => m.id === id);
+                        return (
+                          <span key={id} className="inline-flex items-center px-3 py-1.5 bg-orange-100 text-orange-800 border border-orange-200 rounded-full text-sm font-medium">
+                            {m?.name}
+                          </span>
+                        );
+                      })}
+                      </div>
+                    </div>
+                  )}
+
                   <ScrollArea className="h-[250px] border rounded-xl p-2 bg-slate-50/50">
                     <div className="space-y-1">
                     {filteredMembers.map(member => {
@@ -563,13 +616,13 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                       <div 
                         key={member.id} 
                         id={`participant-container-${member.id}`}
-                        className={`flex flex-col p-3 rounded-lg transition-colors ${isSelected ? 'bg-orange-50/50 border border-orange-100' : 'hover:bg-slate-100'} ${splitMode === 'pay_for_others' && member.id === payerId ? 'opacity-50 pointer-events-none' : ''}`}
+                        className={`flex flex-col p-3 rounded-lg transition-colors ${isSelected ? 'bg-orange-50/50 border border-orange-100' : 'hover:bg-slate-100'} ${isPayForOthers && member.id === payerId ? 'opacity-50 pointer-events-none hidden' : ''}`}
                       >
                         <div className="flex items-center space-x-3">
                           <Checkbox 
                             id={`participant-${member.id}`} 
                             checked={isSelected}
-                            disabled={splitMode === 'pay_for_others' && member.id === payerId}
+                            disabled={isPayForOthers && member.id === payerId}
                             onCheckedChange={() => {
                               if (!isSelectClosing.current) toggleParticipant(member.id);
                             }}

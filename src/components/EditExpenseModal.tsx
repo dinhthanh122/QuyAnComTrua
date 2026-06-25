@@ -48,7 +48,8 @@ export function EditExpenseModal({
   const [payerSearch, setPayerSearch] = useState('');
   
   const [participants, setParticipants] = useState<string[]>([]);
-  const [splitMode, setSplitMode] = useState<'equal' | 'portions' | 'exact_amount' | 'pay_for_others'>('equal');
+  const [splitMode, setSplitMode] = useState<'equal' | 'portions' | 'exact_amount'>('equal');
+  const [isPayForOthers, setIsPayForOthers] = useState(false);
   const [inputPin, setInputPin] = useState('');
   
   const [advancedSplits, setAdvancedSplits] = useState<Record<string, { portions: number, sponsor_id: string | null }>>({});
@@ -72,11 +73,9 @@ export function EditExpenseModal({
       setAdvancedSplits(adv);
 
       const hasPayer = splits.some(s => s.user_id === expense.payer_id);
-      const isAllEqual = splits.every(s => s.portions === 1);
+      setIsPayForOthers(!hasPayer);
       
-      if (!hasPayer && isAllEqual && splits.length > 0) {
-        setSplitMode('pay_for_others');
-      } else if (splits.some(s => s.portions > 100)) {
+      if (splits.some(s => s.portions > 100)) {
         setSplitMode('exact_amount');
       } else if (splits.some(s => s.portions !== 1)) {
         setSplitMode('portions');
@@ -111,7 +110,7 @@ export function EditExpenseModal({
 
   const toggleParticipant = (id: string) => {
     if (isSelectClosing.current) return;
-    if (splitMode === 'pay_for_others' && id === payerId) return;
+    if (isPayForOthers && id === payerId) return;
 
     setParticipants(prev => {
       if (prev.includes(id)) {
@@ -131,7 +130,7 @@ export function EditExpenseModal({
     isSelectClosing.current = true;
     setTimeout(() => isSelectClosing.current = false, 200);
 
-    if (splitMode !== 'pay_for_others' && v && !participants.includes(v)) {
+    if (!isPayForOthers && v && !participants.includes(v)) {
       if (splitMode === 'portions') {
         setAdvancedSplits(s => ({ ...s, [v]: { portions: 1, sponsor_id: null } }));
       } else if (splitMode === 'exact_amount') {
@@ -142,7 +141,7 @@ export function EditExpenseModal({
     setPayerId(v || '');
     setParticipants(prev => {
       let next = [...prev];
-      if (splitMode === 'pay_for_others') {
+      if (isPayForOthers) {
         next = next.filter(p => p !== v);
       } else if (v && !next.includes(v)) {
         next.push(v);
@@ -159,9 +158,9 @@ export function EditExpenseModal({
   };
 
   const selectAll = () => {
-    const validMembers = splitMode === 'pay_for_others' ? members.filter(m => m.id !== payerId) : members;
+    const validMembers = isPayForOthers ? members.filter(m => m.id !== payerId) : members;
     if (participants.length === validMembers.length) {
-      setParticipants(splitMode === 'equal' && payerId ? [payerId] : []);
+      setParticipants(!isPayForOthers && payerId ? [payerId] : []);
     } else {
       setParticipants(validMembers.map(m => m.id));
       if (splitMode === 'portions' || splitMode === 'exact_amount') {
@@ -179,7 +178,7 @@ export function EditExpenseModal({
   const getFinalSplits = (): ParticipantSplit[] => {
     return participants.map(id => ({
       user_id: id,
-      portions: splitMode === 'equal' || splitMode === 'pay_for_others' ? 1 : (advancedSplits[id]?.portions || 1),
+      portions: splitMode === 'equal' ? 1 : (advancedSplits[id]?.portions || 1),
       sponsor_id: null
     }));
   };
@@ -206,7 +205,7 @@ export function EditExpenseModal({
         splits: getFinalSplits(),
         updater_id: updaterId,
         pin_code: inputPin,
-        split_mode: splitMode
+        split_mode: isPayForOthers ? 'pay_for_others' : splitMode
       });
       onOpenChange(false);
       setShowConfirm(false);
@@ -459,6 +458,46 @@ export function EditExpenseModal({
                       {members.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  
+                  {!viewOnly && (
+                    <div className="flex items-center space-x-3 pt-2 pl-1 cursor-pointer" onClick={() => {
+                      const nextVal = !isPayForOthers;
+                      setIsPayForOthers(nextVal);
+                      if (nextVal) {
+                        setParticipants(prev => prev.filter(p => p !== payerId));
+                      } else if (payerId && !participants.includes(payerId)) {
+                        setParticipants(prev => [...prev, payerId]);
+                        if (splitMode === 'portions') {
+                          setAdvancedSplits(s => ({ ...s, [payerId]: { portions: 1, sponsor_id: null } }));
+                        } else if (splitMode === 'exact_amount') {
+                          setAdvancedSplits(s => ({ ...s, [payerId]: { portions: 0, sponsor_id: null } }));
+                        }
+                      }
+                    }}>
+                      <Checkbox 
+                        id="edit-is-pay-for-others" 
+                        checked={isPayForOthers}
+                        onCheckedChange={(checked) => {
+                          const nextVal = !!checked;
+                          setIsPayForOthers(nextVal);
+                          if (nextVal) {
+                            setParticipants(prev => prev.filter(p => p !== payerId));
+                          } else if (payerId && !participants.includes(payerId)) {
+                            setParticipants(prev => [...prev, payerId]);
+                            if (splitMode === 'portions') {
+                              setAdvancedSplits(s => ({ ...s, [payerId]: { portions: 1, sponsor_id: null } }));
+                            } else if (splitMode === 'exact_amount') {
+                              setAdvancedSplits(s => ({ ...s, [payerId]: { portions: 0, sponsor_id: null } }));
+                            }
+                          }
+                        }}
+                        className="w-5 h-5 rounded data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+                      />
+                      <Label htmlFor="edit-is-pay-for-others" className="text-sm font-medium text-slate-700 cursor-pointer select-none">
+                        Báo hộ (Người trả tiền KHÔNG ăn)
+                      </Label>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -489,10 +528,6 @@ export function EditExpenseModal({
                       <RadioGroupItem value="exact_amount" id="edit-mode-exact" className="border-slate-300 aria-checked:border-orange-600 aria-checked:bg-orange-600" />
                       <span className="text-sm font-medium">Số tiền</span>
                     </Label>
-                    <Label htmlFor="edit-mode-pay" className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${splitMode === 'pay_for_others' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
-                      <RadioGroupItem value="pay_for_others" id="edit-mode-pay" className="border-slate-300 aria-checked:border-orange-600 aria-checked:bg-orange-600" />
-                      <span className="text-sm font-medium">Báo hộ</span>
-                    </Label>
                   </RadioGroup>
                 </div>
 
@@ -502,6 +537,22 @@ export function EditExpenseModal({
                     {!viewOnly && <Button type="button" variant="ghost" size="sm" onClick={selectAll} className="text-orange-600">Chọn tất cả</Button>}
                   </div>
                   {!viewOnly && <Input placeholder="Tìm tên..." value={search} onChange={e => setSearch(e.target.value)} className="h-10 rounded-lg bg-slate-50" />}
+                  
+                  {!viewOnly && participants.length > 0 && (
+                    <div className="bg-orange-50/50 border border-orange-100 rounded-xl p-3 mt-1 mb-1">
+                      <div className="text-xs font-semibold text-orange-800 mb-2 uppercase tracking-wide">Đã chọn ({participants.length})</div>
+                      <div className="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto">
+                        {participants.map(id => {
+                        const m = members.find(m => m.id === id);
+                        return (
+                          <span key={id} className="inline-flex items-center px-3 py-1.5 bg-orange-100 text-orange-800 border border-orange-200 rounded-full text-sm font-medium">
+                            {m?.name}
+                          </span>
+                        );
+                      })}
+                      </div>
+                    </div>
+                  )}
                   <ScrollArea className={`${viewOnly ? 'max-h-[300px]' : 'h-[200px]'} border rounded-xl p-2 bg-slate-50`}>
                     <div className="space-y-1">
                     {(viewOnly ? filteredMembers.filter(m => participants.includes(m.id)) : filteredMembers).map(member => {
@@ -512,13 +563,13 @@ export function EditExpenseModal({
                       <div 
                         key={member.id} 
                         id={`edit-participant-container-${member.id}`}
-                        className={`flex flex-col p-3 rounded-lg transition-colors ${isSelected ? 'bg-orange-50/50 border border-orange-100' : 'hover:bg-slate-100'} ${splitMode === 'pay_for_others' && member.id === payerId ? 'opacity-50 pointer-events-none' : ''}`}
+                        className={`flex flex-col p-3 rounded-lg transition-colors ${isSelected ? 'bg-orange-50/50 border border-orange-100' : 'hover:bg-slate-100'} ${isPayForOthers && member.id === payerId ? 'opacity-50 pointer-events-none hidden' : ''}`}
                       >
                         <div className="flex items-center space-x-3">
                           <Checkbox 
                             id={`edit-participant-${member.id}`} 
                             checked={isSelected}
-                            disabled={viewOnly || (splitMode === 'pay_for_others' && member.id === payerId)}
+                            disabled={viewOnly || (isPayForOthers && member.id === payerId)}
                             onCheckedChange={() => {
                               if (!isSelectClosing.current) toggleParticipant(member.id);
                             }}
