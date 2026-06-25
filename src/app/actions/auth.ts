@@ -17,6 +17,7 @@ export async function loginAdmin(passcode: string) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
+      maxAge: 15 * 60, // 15 minutes
     });
     return { success: true };
   } else {

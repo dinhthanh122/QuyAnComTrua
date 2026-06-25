@@ -10,10 +10,10 @@ import { SystemSettingsModal } from '@/components/SystemSettingsModal';
 import { EmailConfigModal } from '@/components/EmailConfigModal';
 import { ResetDatabaseModal } from '@/components/ResetDatabaseModal';
 import { LoginModal } from '@/components/LoginModal';
-import { History } from 'lucide-react';
-import Link from 'next/link';
-import { UtensilsCrossed } from 'lucide-react';
 import { checkIsAdmin, logoutAdmin } from './actions/auth';
+import { AdminSessionTimeout } from '@/components/AdminSessionTimeout';
+import { UtensilsCrossed, History } from 'lucide-react';
+import Link from 'next/link';
 import { NotificationFeed } from '@/components/NotificationFeed';
 import { RealtimeSubscriber } from '@/components/RealtimeSubscriber';
 
@@ -50,11 +50,14 @@ export default async function Home() {
           </div>
           <div className="flex items-center gap-3">
             {isAdmin ? (
-              <form action={logoutAdmin}>
-                <button type="submit" className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 rounded-lg transition-colors font-medium">
-                  Đăng xuất
-                </button>
-              </form>
+              <>
+                <AdminSessionTimeout />
+                <form action={logoutAdmin}>
+                  <button type="submit" className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 rounded-lg transition-colors font-medium">
+                    Đăng xuất
+                  </button>
+                </form>
+              </>
             ) : (
               <LoginModal />
             )}

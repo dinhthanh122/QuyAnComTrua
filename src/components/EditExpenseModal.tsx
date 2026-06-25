@@ -228,15 +228,20 @@ export function EditExpenseModal({
     if (total_portions === 0) return null;
 
     const portionPrice = total / total_portions;
-    const netChanges: Record<string, number> = {};
-    netChanges[payerId] = total;
+    const changes: Record<string, { net: number, paid: number, consumed: number }> = {};
+    changes[payerId] = { net: total, paid: total, consumed: 0 };
 
     for (const split of splits) {
       const cost = split.portions * portionPrice;
-      netChanges[split.user_id] = (netChanges[split.user_id] || 0) - cost;
+      const responsible_id = split.sponsor_id || split.user_id;
+      if (!changes[responsible_id]) {
+        changes[responsible_id] = { net: 0, paid: 0, consumed: 0 };
+      }
+      changes[responsible_id].consumed += cost;
+      changes[responsible_id].net -= cost;
     }
 
-    return { total_portions, portionPrice, netChanges };
+    return { total_portions, portionPrice, changes };
   };
 
   const preview = showConfirm ? calculatePreview() : null;
@@ -329,6 +334,53 @@ export function EditExpenseModal({
                     })}
                   </div>
                 </div>
+                
+                <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl mt-4 space-y-3">
+                  {preview && (
+                    <div className="space-y-2">
+                      {splitMode !== 'exact_amount' && (
+                        <>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-slate-500">Tổng số suất:</span>
+                            <span className="font-bold text-slate-700">{preview.total_portions} suất</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm border-b border-blue-200 pb-2">
+                            <span className="text-slate-500">Đơn giá mỗi suất:</span>
+                            <span className="font-bold text-slate-700">{Math.round(preview.portionPrice).toLocaleString('vi-VN')} VNĐ</span>
+                          </div>
+                        </>
+                      )}
+                      <div className="pt-2">
+                        <div className="text-sm font-semibold text-slate-700 mb-2">Thay đổi số dư dự kiến:</div>
+                        {Object.entries(preview.changes).map(([uid, details]) => {
+                          if (Math.round(details.net) === 0) return null;
+                          const mName = members.find(m => m.id === uid)?.name || 'Ai đó';
+                          
+                          let explain = "";
+                          if (details.paid > 0 && details.consumed > 0) {
+                            explain = `(Đã trả ${Math.round(details.paid).toLocaleString('vi-VN')}đ - Ăn ${Math.round(details.consumed).toLocaleString('vi-VN')}đ)`;
+                          } else if (details.paid > 0) {
+                            explain = `(Đã trả ${Math.round(details.paid).toLocaleString('vi-VN')}đ)`;
+                          } else if (details.consumed > 0) {
+                            explain = `(Ăn ${Math.round(details.consumed).toLocaleString('vi-VN')}đ)`;
+                          }
+
+                          return (
+                            <div key={uid} className="flex justify-between items-center text-sm py-1.5 border-b border-blue-100/50 last:border-0">
+                              <div className="flex flex-col">
+                                <span className="text-slate-700 font-medium">{mName}</span>
+                                <span className="text-xs text-slate-500">{explain}</span>
+                              </div>
+                              <span className={`font-bold ${details.net > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {details.net > 0 ? '+' : ''}{Math.round(details.net).toLocaleString('vi-VN')}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {updaterId && (
                   <div className="mt-4 p-4 border border-slate-200 rounded-xl bg-white">
@@ -419,7 +471,10 @@ export function EditExpenseModal({
                   <RadioGroup value={splitMode} onValueChange={(val: any) => {
                     setSplitMode(val);
                     setAdvancedSplits({});
-                    setTotalAmount('');
+                    if (val === 'exact_amount') {
+                      setTotalAmount('');
+                    }
+                    
                     if (val === 'pay_for_others') {
                       setParticipants([]);
                     } else {

@@ -207,16 +207,20 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
     if (total_portions === 0) return null;
 
     const portionPrice = total / total_portions;
-    const netChanges: Record<string, number> = {};
-    netChanges[payerId] = total;
+    const changes: Record<string, { net: number, paid: number, consumed: number }> = {};
+    changes[payerId] = { net: total, paid: total, consumed: 0 };
 
     for (const split of splits) {
       const cost = split.portions * portionPrice;
       const responsible_id = split.sponsor_id || split.user_id;
-      netChanges[responsible_id] = (netChanges[responsible_id] || 0) - cost;
+      if (!changes[responsible_id]) {
+        changes[responsible_id] = { net: 0, paid: 0, consumed: 0 };
+      }
+      changes[responsible_id].consumed += cost;
+      changes[responsible_id].net -= cost;
     }
 
-    return { total_portions, portionPrice, netChanges };
+    return { total_portions, portionPrice, changes };
   };
 
   const preview = showConfirm ? calculatePreview() : null;
@@ -340,14 +344,27 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                       )}
                       <div className="pt-2">
                         <div className="text-sm font-semibold text-slate-700 mb-2">Thay đổi số dư dự kiến:</div>
-                        {Object.entries(preview.netChanges).map(([uid, change]) => {
-                          if (change === 0) return null;
+                        {Object.entries(preview.changes).map(([uid, details]) => {
+                          if (Math.round(details.net) === 0) return null;
                           const mName = members.find(m => m.id === uid)?.name || 'Ai đó';
+                          
+                          let explain = "";
+                          if (details.paid > 0 && details.consumed > 0) {
+                            explain = `(Đã trả ${Math.round(details.paid).toLocaleString('vi-VN')}đ - Ăn ${Math.round(details.consumed).toLocaleString('vi-VN')}đ)`;
+                          } else if (details.paid > 0) {
+                            explain = `(Đã trả ${Math.round(details.paid).toLocaleString('vi-VN')}đ)`;
+                          } else if (details.consumed > 0) {
+                            explain = `(Ăn ${Math.round(details.consumed).toLocaleString('vi-VN')}đ)`;
+                          }
+
                           return (
-                            <div key={uid} className="flex justify-between items-center text-sm py-1">
-                              <span className="text-slate-600">{mName}</span>
-                              <span className={`font-bold ${change > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {change > 0 ? '+' : ''}{Math.round(change).toLocaleString('vi-VN')}
+                            <div key={uid} className="flex justify-between items-center text-sm py-1.5 border-b border-blue-100/50 last:border-0">
+                              <div className="flex flex-col">
+                                <span className="text-slate-700 font-medium">{mName}</span>
+                                <span className="text-xs text-slate-500">{explain}</span>
+                              </div>
+                              <span className={`font-bold ${details.net > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {details.net > 0 ? '+' : ''}{Math.round(details.net).toLocaleString('vi-VN')}
                               </span>
                             </div>
                           );
@@ -477,7 +494,10 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                       onValueChange={(val: any) => {
                         setSplitMode(val);
                         setAdvancedSplits({});
-                        setTotalAmount('');
+                        if (val === 'exact_amount') {
+                          setTotalAmount('');
+                        }
+                        
                         if (val === 'pay_for_others') {
                           setParticipants([]);
                         } else {
