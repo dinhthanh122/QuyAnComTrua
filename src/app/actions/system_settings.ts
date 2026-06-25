@@ -42,7 +42,17 @@ export async function getSystemConfig(): Promise<SystemConfig | null> {
 
   if (error || !data || !data.setting_value) return defaultConfig;
 
-  const value = data.setting_value as SystemConfig;
+  let rawValue: SystemConfig;
+  if (typeof data.setting_value === 'string') {
+    try {
+      rawValue = JSON.parse(data.setting_value);
+    } catch {
+      rawValue = {} as SystemConfig;
+    }
+  } else {
+    rawValue = data.setting_value as SystemConfig;
+  }
+  const value = { ...rawValue };
   
   // Migration from old schema
   if (!value.expense_warning_thresholds) {
