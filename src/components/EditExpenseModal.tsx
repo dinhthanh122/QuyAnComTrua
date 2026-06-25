@@ -404,8 +404,8 @@ export function EditExpenseModal({
                 <Button variant="outline" type="button" onClick={() => onOpenChange(false)} className="flex-1 h-14 rounded-xl text-lg font-semibold bg-orange-50 hover:bg-orange-100 border-orange-200 text-orange-700">Đóng</Button>
               ) : (
                 <>
-                  <Button variant="outline" type="button" onClick={() => setShowDeleteConfirm(true)} className="flex-1 h-14 rounded-xl text-lg font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">Hủy hóa đơn</Button>
-                  <Button type="submit" disabled={loading} className="flex-1 h-14 rounded-xl bg-orange-500 hover:bg-orange-600 text-white shadow-lg text-lg font-semibold">
+                  <Button variant="outline" type="button" onClick={() => { setShowConfirm(false); setShowDeleteConfirm(true); }} className="flex-1 h-14 rounded-xl text-lg font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">Hủy hóa đơn</Button>
+                  <Button type="button" onClick={executeSubmit} disabled={loading} className="flex-1 h-14 rounded-xl bg-orange-500 hover:bg-orange-600 text-white shadow-lg text-lg font-semibold">
                     {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Lưu thay đổi'}
                   </Button>
                 </>
@@ -472,21 +472,9 @@ export function EditExpenseModal({
                     setSplitMode(val);
                     setAdvancedSplits({});
                     setPayerId('');
+                    setParticipants([]);
                     if (val === 'exact_amount') {
                       setTotalAmount('');
-                    }
-                    
-                    if (val === 'pay_for_others') {
-                      setParticipants([]);
-                    } else {
-                      setParticipants(payerId ? [payerId] : []);
-                      if (payerId) {
-                        if (val === 'portions') {
-                          setAdvancedSplits({ [payerId]: { portions: 1, sponsor_id: null } });
-                        } else if (val === 'exact_amount') {
-                          setAdvancedSplits({ [payerId]: { portions: 0, sponsor_id: null } });
-                        }
-                      }
                     }
                   }} className="grid grid-cols-2 gap-3" disabled={viewOnly}>
                     <Label htmlFor="edit-mode-equal" className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${splitMode === 'equal' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}>

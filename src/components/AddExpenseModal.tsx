@@ -495,21 +495,9 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                         setSplitMode(val);
                         setAdvancedSplits({});
                         setPayerId('');
+                        setParticipants([]);
                         if (val === 'exact_amount') {
                           setTotalAmount('');
-                        }
-                        
-                        if (val === 'pay_for_others') {
-                          setParticipants([]);
-                        } else {
-                          setParticipants(payerId ? [payerId] : []);
-                          if (payerId) {
-                            if (val === 'portions') {
-                              setAdvancedSplits({ [payerId]: { portions: 1, sponsor_id: null } });
-                            } else if (val === 'exact_amount') {
-                              setAdvancedSplits({ [payerId]: { portions: 0, sponsor_id: null } });
-                            }
-                          }
                         }
                       }}
                       className="grid grid-cols-2 gap-3"
@@ -520,7 +508,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                       </Label>
                       <Label htmlFor="mode-portions" className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${splitMode === 'portions' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
                         <RadioGroupItem value="portions" id="mode-portions" className="border-slate-300 aria-checked:border-orange-600 aria-checked:bg-orange-600" />
-                        <span className="text-sm font-medium">Báo theo số lượng</span>
+                        <span className="text-sm font-medium">Báo theo số suất ăn</span>
                       </Label>
                       <Label htmlFor="mode-exact-amount" className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${splitMode === 'exact_amount' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
                         <RadioGroupItem value="exact_amount" id="mode-exact-amount" className="border-slate-300 aria-checked:border-orange-600 aria-checked:bg-orange-600" />
