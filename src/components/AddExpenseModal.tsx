@@ -8,7 +8,7 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { PlusCircle, Loader2, Search, Minus, Plus } from 'lucide-react';
+import { PlusCircle, Loader2, Search, Minus, Plus, CheckCircle2 } from 'lucide-react';
 import { Checkbox } from './ui/checkbox';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { ScrollArea } from './ui/scroll-area';
@@ -19,6 +19,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [isDuplicate, setIsDuplicate] = useState(false);
   const isSelectClosing = useRef(false);
   
@@ -51,6 +52,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
         }
       });
       setShowConfirm(false);
+      setShowSuccessDialog(false);
       setIsDuplicate(false);
       isSelectClosing.current = false;
     }
@@ -152,6 +154,10 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!totalAmount || !payerId || participants.length === 0) return;
+    if (splitMode === 'equal' && participants.length <= 1) {
+      alert('Chia đều phải chọn từ 2 người trở lên.');
+      return;
+    }
     
     setLoading(true);
     try {
@@ -182,7 +188,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
         date: date,
         split_mode: splitMode
       });
-      setOpen(false);
+      setShowSuccessDialog(true);
       // Reset is handled by useEffect
       router.refresh();
     } catch (error: any) {
@@ -234,11 +240,26 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
       >
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="text-xl">
-            {showConfirm ? 'Xác nhận thông tin' : 'Thêm bữa ăn mới'}
+            {showSuccessDialog ? 'Thành công' : showConfirm ? 'Xác nhận thông tin' : 'Thêm bữa ăn mới'}
           </DialogTitle>
         </DialogHeader>
         
-        {showConfirm ? (
+        {showSuccessDialog ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4">
+            <CheckCircle2 className="w-16 h-16 text-green-500" />
+            <div className="text-xl font-bold text-slate-800">Đã báo cơm thành công</div>
+            <p className="text-slate-500 text-center text-sm">Thông tin bữa ăn đã được lưu vào hệ thống và thông báo đã được gửi đi.</p>
+            <Button 
+              className="mt-6 w-full sm:w-40 bg-slate-900 rounded-xl"
+              onClick={() => {
+                setShowSuccessDialog(false);
+                setOpen(false);
+              }}
+            >
+              Đóng
+            </Button>
+          </div>
+        ) : showConfirm ? (
           <div className="flex-1 flex flex-col overflow-hidden">
             <ScrollArea className="flex-1 px-6 pb-6 overflow-y-auto">
               <div className="space-y-4 mt-2">

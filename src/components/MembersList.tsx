@@ -65,17 +65,17 @@ export function MembersList({ members }: { members: Member[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col md:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-col gap-3">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Tìm kiếm thành viên..." 
+            placeholder="Tìm kiếm" 
             value={search}
             onChange={e => handleSearch(e.target.value)}
             className="pl-9 h-12 text-base rounded-xl shadow-sm"
           />
         </div>
-        <div className="w-full md:w-[260px] shrink-0">
+        <div className="w-full shrink-0">
           <Select value={sortBy} onValueChange={(v) => { if (v) { setSortBy(v); setCurrentPage(1); } }}>
             <SelectTrigger className="h-12 text-base rounded-xl shadow-sm bg-white border-slate-200">
               <div className="flex items-center gap-2">

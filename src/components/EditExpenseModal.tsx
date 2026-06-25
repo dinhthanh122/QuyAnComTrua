@@ -187,6 +187,10 @@ export function EditExpenseModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!totalAmount || !payerId || participants.length === 0) return;
+    if (splitMode === 'equal' && participants.length <= 1) {
+      alert('Chia đều phải chọn từ 2 người trở lên.');
+      return;
+    }
     setShowConfirm(true);
   };
 
