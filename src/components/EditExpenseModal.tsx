@@ -471,6 +471,7 @@ export function EditExpenseModal({
                   <RadioGroup value={splitMode} onValueChange={(val: any) => {
                     setSplitMode(val);
                     setAdvancedSplits({});
+                    setPayerId('');
                     if (val === 'exact_amount') {
                       setTotalAmount('');
                     }
