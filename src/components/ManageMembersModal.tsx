@@ -8,14 +8,13 @@ import { Member } from '@/app/actions/expense';
 import { addMember, updateMember, deleteMember } from '@/app/actions/member';
 import { Users, Plus, Pencil, Trash2, Loader2, Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import boyAvatar from '@/asset/boy.png';
-import girlAvatar from '@/asset/girl.png';
 
 export function ManageMembersModal({ members }: { members: Member[] }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newPhone, setNewPhone] = useState('');
   const [newPinCode, setNewPinCode] = useState('');
   const [newReceiveNotifs, setNewReceiveNotifs] = useState(true);
   const [newGender, setNewGender] = useState('MALE');
@@ -24,6 +23,7 @@ export function ManageMembersModal({ members }: { members: Member[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
   const [editReceiveNotifs, setEditReceiveNotifs] = useState(true);
   const [editPinCode, setEditPinCode] = useState('');
   const [editGender, setEditGender] = useState('MALE');
@@ -44,9 +44,10 @@ export function ManageMembersModal({ members }: { members: Member[] }) {
     }
     setLoading(true);
     try {
-      await addMember(newName.trim(), newEmail.trim(), newReceiveNotifs, newPinCode.trim() || undefined, newGender);
+      await addMember(newName.trim(), newEmail.trim(), newPhone.trim(), newReceiveNotifs, newPinCode.trim() || undefined, newGender);
       setNewName('');
       setNewEmail('');
+      setNewPhone('');
       setNewPinCode('');
       setNewReceiveNotifs(true);
       setNewGender('MALE');
@@ -61,6 +62,7 @@ export function ManageMembersModal({ members }: { members: Member[] }) {
     setEditingId(m.id);
     setEditName(m.name);
     setEditEmail(m.email || '');
+    setEditPhone(m.phone || '');
     setEditPinCode(m.pin_code || '');
     setEditReceiveNotifs(m.receive_notifications !== false);
     setEditGender(m.gender || 'MALE');
@@ -73,7 +75,7 @@ export function ManageMembersModal({ members }: { members: Member[] }) {
     }
     setLoading(true);
     try {
-      await updateMember(id, editName.trim(), editEmail.trim(), editReceiveNotifs, editPinCode.trim() || undefined, editGender);
+      await updateMember(id, editName.trim(), editEmail.trim(), editPhone.trim(), editReceiveNotifs, editPinCode.trim() || undefined, editGender);
       setEditingId(null);
     } catch (err: any) {
       alert(err.message);
@@ -130,14 +132,22 @@ export function ManageMembersModal({ members }: { members: Member[] }) {
             </div>
             <div className="flex gap-2">
               <Input 
-                placeholder="Email (bắt buộc)..." 
+                placeholder="Email..." 
                 type="email"
-                required
                 value={newEmail}
                 onChange={e => setNewEmail(e.target.value)}
                 className="flex-1 rounded-xl"
                 disabled={loading}
               />
+              <Input 
+                placeholder="Số điện thoại..." 
+                value={newPhone}
+                onChange={e => setNewPhone(e.target.value.replace(/\D/g, ''))}
+                className="flex-1 rounded-xl"
+                disabled={loading}
+              />
+            </div>
+            <div className="flex gap-2">
               <Input 
                 placeholder="Mã PIN (6 số)" 
                 required
@@ -195,10 +205,17 @@ export function ManageMembersModal({ members }: { members: Member[] }) {
                         value={editEmail}
                         onChange={e => setEditEmail(e.target.value)}
                         className="h-9 flex-1"
-                        placeholder="Email (bắt buộc)..."
+                        placeholder="Email..."
                         type="email"
-                        required
                       />
+                      <Input 
+                        value={editPhone}
+                        onChange={e => setEditPhone(e.target.value.replace(/\D/g, ''))}
+                        className="h-9 flex-1"
+                        placeholder="SĐT..."
+                      />
+                    </div>
+                    <div className="flex gap-2">
                       <Input 
                         value={editPinCode}
                         onChange={e => setEditPinCode(e.target.value.replace(/\D/g, ''))}
@@ -229,14 +246,14 @@ export function ManageMembersModal({ members }: { members: Member[] }) {
                 <>
                   <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden shrink-0 mr-3 flex items-center justify-center">
                     {m.gender === 'FEMALE' ? (
-                      <img src={girlAvatar.src} alt="Nữ" className="w-full h-full object-cover" />
+                      <img src="/asset/girl.png" alt="Nữ" className="w-full h-full object-cover" />
                     ) : (
-                      <img src={boyAvatar.src} alt="Nam" className="w-full h-full object-cover" />
+                      <img src="/asset/boy.png" alt="Nam" className="w-full h-full object-cover" />
                     )}
                   </div>
                   <div className="flex-1 overflow-hidden">
                     <div className="font-medium text-slate-700 truncate">{m.name} {m.pin_code && <span className="text-xs font-normal text-slate-400 ml-1">(Có PIN)</span>}</div>
-                    {m.email && <div className="text-xs text-slate-500 truncate">{m.email}</div>}
+                    {(m.email || m.phone) && <div className="text-xs text-slate-500 truncate">{m.email} {m.phone && `• ${m.phone}`}</div>}
                   </div>
                   <div className="flex items-center gap-1">
                     <Button size="sm" variant="ghost" onClick={() => startEdit(m)} disabled={loading} className="px-2 text-blue-600">

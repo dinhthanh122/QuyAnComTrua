@@ -2,7 +2,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
-import { checkIsAdmin } from './auth';
+import { checkIsAdmin, getAuthenticatedMemberId } from './auth';
 import { sendEmail } from '@/lib/email';
 
 export type Member = {
@@ -10,10 +10,13 @@ export type Member = {
   name: string;
   balance: number;
   email?: string;
+  phone?: string;
   receive_notifications?: boolean;
   pin_code?: string;
   meal_count?: number;
   gender?: 'MALE' | 'FEMALE' | 'UNKNOWN';
+  isMasked?: boolean;
+  saved_groups?: { id: string, name: string, member_ids: string[] }[];
 };
 
 export async function getMembers(): Promise<Member[]> {
@@ -62,6 +65,33 @@ export async function getMembers(): Promise<Member[]> {
     ...m,
     meal_count: mealCounts[m.id] || 0
   }));
+
+  const isAdmin = await checkIsAdmin();
+  const memberId = await getAuthenticatedMemberId();
+
+  if (!isAdmin && memberId) {
+    membersList = membersList.map(m => {
+      if (m.id !== memberId) {
+        let maskedEmail = '***';
+        if (m.email) {
+          const parts = m.email.split('@');
+          if (parts.length === 2) {
+            maskedEmail = parts[0].substring(0, 3) + '***@' + parts[1];
+          } else {
+            maskedEmail = m.email.substring(0, 3) + '***';
+          }
+        }
+        
+        return {
+          ...m,
+          email: maskedEmail,
+          phone: '***',
+          isMasked: true,
+        };
+      }
+      return m;
+    });
+  }
 
   // Sắp xếp theo Tên (từ cuối cùng), sau đó theo Họ đệm
   return membersList.sort((a, b) => {

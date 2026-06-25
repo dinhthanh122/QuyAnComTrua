@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { Member } from '@/app/actions/expense';
+import { removeAccents } from '@/lib/utils';
 import { Input } from './ui/input';
 import { Search, ChevronLeft, ChevronRight, ArrowRight, ArrowDownUp } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { MemberHistoryModal } from './MemberHistoryModal';
-import boyAvatar from '@/asset/boy.png';
-import girlAvatar from '@/asset/girl.png';
+
 
 export function MembersList({ members }: { members: Member[] }) {
   const [search, setSearch] = useState('');
@@ -42,9 +42,10 @@ export function MembersList({ members }: { members: Member[] }) {
     // This prevents hydration mismatches due to localeCompare differences between Postgres/Node/Browser.
   }
 
-  const filteredMembers = sortedMembers.filter(m => 
-    m.name.toLowerCase().includes(search.toLowerCase())
-  );
+  let filteredMembers = [...sortedMembers];
+  if (search) {
+    filteredMembers = filteredMembers.filter(m => removeAccents(m.name).toLowerCase().includes(removeAccents(search).toLowerCase()));
+  }
 
   const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -108,10 +109,12 @@ export function MembersList({ members }: { members: Member[] }) {
           return (
             <div 
               key={member.id} 
-              className={`group relative overflow-hidden rounded-3xl bg-gradient-to-r ${gradient} shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer border-none text-white`}
+              className={`group relative overflow-hidden rounded-3xl bg-gradient-to-r ${gradient} shadow-md border-none text-white ${!member.isMasked ? 'hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer' : ''}`}
               onClick={() => {
-                setSelectedMember(member);
-                setHistoryOpen(true);
+                if (!member.isMasked) {
+                  setSelectedMember(member);
+                  setHistoryOpen(true);
+                }
               }}
             >
               {/* Decorative Curve on the right */}
@@ -122,9 +125,9 @@ export function MembersList({ members }: { members: Member[] }) {
                   {/* Avatar */}
                   <div className="w-16 h-16 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center overflow-hidden shrink-0 shadow-sm text-white">
                     {member.gender === 'FEMALE' ? (
-                      <img src={girlAvatar.src} alt="Nữ" className="w-full h-full object-cover" />
+                      <img src="/asset/girl.png" alt="Nữ" className="w-full h-full object-cover" />
                     ) : (
-                      <img src={boyAvatar.src} alt="Nam" className="w-full h-full object-cover" />
+                      <img src="/asset/boy.png" alt="Nam" className="w-full h-full object-cover" />
                     )}
                   </div>
 
@@ -139,7 +142,7 @@ export function MembersList({ members }: { members: Member[] }) {
                     <div className="flex items-center gap-4">
                       <div className="flex flex-col min-w-0 flex-1">
                         <span className="font-extrabold text-lg leading-none mb-1 drop-shadow-sm whitespace-nowrap">
-                          {member.balance > 0 ? '+' : ''}{Math.round(member.balance).toLocaleString('vi-VN')} VNĐ
+                          {member.isMasked ? '*** VNĐ' : `${member.balance > 0 ? '+' : ''}${Math.round(member.balance).toLocaleString('vi-VN')} VNĐ`}
                         </span>
                         <span className="text-[11px] text-white/90 uppercase tracking-wider font-bold">Số dư</span>
                       </div>
@@ -154,7 +157,7 @@ export function MembersList({ members }: { members: Member[] }) {
                 </div>
 
                 {/* View Details */}
-                <div className="flex flex-col items-center justify-center shrink-0 w-16 opacity-90 group-hover:opacity-100 transition-opacity">
+                <div className={`flex flex-col items-center justify-center shrink-0 w-16 transition-opacity ${member.isMasked ? 'opacity-30 cursor-not-allowed' : 'opacity-90 group-hover:opacity-100 cursor-pointer'}`}>
                   <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center mb-2">
                     <ArrowRight className="w-4 h-4 text-white" />
                   </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Member, addExpense, checkDuplicateExpense, ParticipantSplit } from '@/app/actions/expense';
 import { getSystemConfig, WarningThreshold } from '@/app/actions/system_settings';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
@@ -8,13 +8,15 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { PlusCircle, Loader2, Search, Minus, Plus, CheckCircle2 } from 'lucide-react';
+import { PlusCircle, Loader2, Search, Minus, Plus, CheckCircle2, Bookmark, Trash2, Users } from 'lucide-react';
 import { Checkbox } from './ui/checkbox';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { ScrollArea } from './ui/scroll-area';
 import { useRouter } from 'next/navigation';
+import { saveMemberGroup, deleteMemberGroup } from '@/app/actions/member';
+import { removeAccents } from '@/lib/utils';
 
-export function AddExpenseModal({ members }: { members: Member[] }) {
+export function AddExpenseModal({ members, currentMemberId }: { members: Member[], currentMemberId?: string | null }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -35,19 +37,29 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
   const [isPayForOthers, setIsPayForOthers] = useState(false);
   const [advancedSplits, setAdvancedSplits] = useState<Record<string, { portions: number, sponsor_id: string | null }>>({});
   const [warningThresholds, setWarningThresholds] = useState<WarningThreshold[]>([]);
+  
+  const [saveGroupChecked, setSaveGroupChecked] = useState(false);
+  const [saveGroupName, setSaveGroupName] = useState('');
+  const [isReportingForOther, setIsReportingForOther] = useState(false);
+  
+  const currentUser = members.find(m => m.id === currentMemberId);
+  const savedGroups = currentUser?.saved_groups || [];
 
   useEffect(() => {
     if (open) {
       setTotalAmount('');
-      setPayerId('');
+      setPayerId(currentMemberId || '');
       setDescription('');
       setDate(new Date().toISOString().split('T')[0]);
       setSearch('');
       setPayerSearch('');
-      setParticipants([]);
+      setParticipants(currentMemberId ? [currentMemberId] : []);
       setSplitMode('equal');
       setIsPayForOthers(false);
       setAdvancedSplits({});
+      setSaveGroupChecked(false);
+      setSaveGroupName('');
+      setIsReportingForOther(false);
       getSystemConfig().then(cfg => {
         if (cfg && cfg.expense_warning_thresholds) {
           setWarningThresholds(cfg.expense_warning_thresholds);
@@ -69,9 +81,10 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
     }
   }, [advancedSplits, participants, splitMode]);
 
-  const filteredMembers = members.filter(m => 
-    m.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredMembers = useMemo(() => members.filter(m => {
+    if (!search) return true;
+    return removeAccents(m.name).includes(removeAccents(search));
+  }), [members, search]);
 
   const toggleParticipant = (id: string) => {
     if (isSelectClosing.current) return;
@@ -190,6 +203,15 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
         date: date,
         split_mode: isPayForOthers ? 'pay_for_others' : splitMode
       });
+      
+      if (saveGroupChecked && saveGroupName.trim() && currentMemberId) {
+        try {
+          await saveMemberGroup(currentMemberId, saveGroupName.trim(), participants);
+        } catch (e) {
+          console.error('Failed to save group:', e);
+        }
+      }
+
       setShowSuccessDialog(true);
       // Reset is handled by useEffect
       router.refresh();
@@ -433,8 +455,31 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-slate-600">Người thanh toán hộ</Label>
-                  <Select value={payerId} onValueChange={handlePayerChange} required>
+                  <div className="flex justify-between items-end">
+                    <Label className="text-slate-600">Người thanh toán</Label>
+                    {currentMemberId && (
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="report-for-other" 
+                          checked={isReportingForOther}
+                          onCheckedChange={(checked) => {
+                            setIsReportingForOther(!!checked);
+                            if (!checked) setPayerId(currentMemberId);
+                          }}
+                          className="w-4 h-4 rounded text-orange-500"
+                        />
+                        <Label htmlFor="report-for-other" className="text-xs text-slate-500 cursor-pointer select-none">
+                          Nhập giùm người khác
+                        </Label>
+                      </div>
+                    )}
+                  </div>
+                  <Select 
+                    value={payerId} 
+                    onValueChange={handlePayerChange} 
+                    required
+                    disabled={!!currentMemberId && !isReportingForOther}
+                  >
                     <SelectTrigger className="h-12 rounded-xl">
                       <SelectValue placeholder="Chọn người trả">
                         {payerId ? members.find(m => m.id === payerId)?.name : null}
@@ -455,7 +500,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                       </div>
                       <div className="overflow-y-auto px-1">
                         {members
-                          .filter(m => m.name.toLowerCase().includes(payerSearch.toLowerCase()))
+                          .filter(m => removeAccents(m.name).includes(removeAccents(payerSearch)))
                           .map(m => (
                           <SelectItem 
                             key={m.id} 
@@ -470,27 +515,14 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                             </div>
                           </SelectItem>
                         ))}
-                        {members.filter(m => m.name.toLowerCase().includes(payerSearch.toLowerCase())).length === 0 && (
+                        {members.filter(m => removeAccents(m.name).includes(removeAccents(payerSearch))).length === 0 && (
                           <div className="py-4 text-center text-sm text-slate-500">Không tìm thấy</div>
                         )}
                       </div>
                     </SelectContent>
                   </Select>
                   
-                  <div className="flex items-center space-x-3 pt-2 pl-1 cursor-pointer" onClick={() => {
-                    const nextVal = !isPayForOthers;
-                    setIsPayForOthers(nextVal);
-                    if (nextVal) {
-                      setParticipants(prev => prev.filter(p => p !== payerId));
-                    } else if (payerId && !participants.includes(payerId)) {
-                      setParticipants(prev => [...prev, payerId]);
-                      if (splitMode === 'portions') {
-                        setAdvancedSplits(s => ({ ...s, [payerId]: { portions: 1, sponsor_id: null } }));
-                      } else if (splitMode === 'exact_amount') {
-                        setAdvancedSplits(s => ({ ...s, [payerId]: { portions: 0, sponsor_id: null } }));
-                      }
-                    }
-                  }}>
+                  <div className="flex items-center space-x-3 pt-2 pl-1">
                     <Checkbox 
                       id="is-pay-for-others" 
                       checked={isPayForOthers}
@@ -511,7 +543,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                       className="w-5 h-5 rounded data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
                     />
                     <Label htmlFor="is-pay-for-others" className="text-sm font-medium text-slate-700 cursor-pointer select-none">
-                      Báo hộ (Người trả tiền KHÔNG ăn)
+                      Người trả tiền KHÔNG tham gia ăn
                     </Label>
                   </div>
                 </div>
@@ -577,6 +609,58 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                     <div className="p-3 bg-slate-50 text-sm text-slate-600 rounded-xl border border-slate-100 flex items-start gap-2">
                       <span className="text-yellow-600">💡</span>
                       <span>Danh sách bên dưới đã được <strong>loại bỏ</strong> tên của người thanh toán (vì người này chỉ trả tiền hộ chứ không ăn).</span>
+                    </div>
+                  )}
+
+                  {savedGroups.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {savedGroups.map(group => (
+                        <div key={group.id} className="inline-flex items-center bg-blue-50 border border-blue-100 rounded-full pl-3 pr-1 py-1 group/sg">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setParticipants(prev => Array.from(new Set([...prev, ...group.member_ids])));
+                              if (splitMode === 'portions') {
+                                setAdvancedSplits(s => {
+                                  const newS = { ...s };
+                                  group.member_ids.forEach(id => {
+                                    if (!newS[id]) newS[id] = { portions: 1, sponsor_id: null };
+                                  });
+                                  return newS;
+                                });
+                              } else if (splitMode === 'exact_amount') {
+                                setAdvancedSplits(s => {
+                                  const newS = { ...s };
+                                  group.member_ids.forEach(id => {
+                                    if (!newS[id]) newS[id] = { portions: 0, sponsor_id: null };
+                                  });
+                                  return newS;
+                                });
+                              }
+                            }}
+                            className="flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-800"
+                          >
+                            <Users className="w-3.5 h-3.5" />
+                            {group.name}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (confirm('Bạn có chắc muốn xóa nhóm này?')) {
+                                try {
+                                  if (currentMemberId) await deleteMemberGroup(currentMemberId, group.id);
+                                } catch (e) {
+                                  console.error(e);
+                                }
+                              }
+                            }}
+                            className="ml-1.5 p-1 text-blue-400 hover:bg-blue-100 hover:text-blue-700 rounded-full transition-colors opacity-0 group-hover/sg:opacity-100"
+                            title="Xóa nhóm"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
 
@@ -677,6 +761,31 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                     )}
                     </div>
                   </ScrollArea>
+                  
+                  {currentMemberId && (
+                    <div className="pt-2 pb-1 space-y-3">
+                      <div className="flex items-center space-x-3">
+                        <Checkbox 
+                          id="save-group" 
+                          checked={saveGroupChecked}
+                          onCheckedChange={(checked) => setSaveGroupChecked(!!checked)}
+                          className="w-5 h-5 rounded data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+                        />
+                        <Label htmlFor="save-group" className="text-sm font-medium text-slate-700 cursor-pointer select-none">
+                          Lưu danh sách những người này thành nhóm mới
+                        </Label>
+                      </div>
+                      {saveGroupChecked && (
+                        <Input 
+                          placeholder="Tên nhóm (ví dụ: Nhóm bạn hay ăn)" 
+                          value={saveGroupName}
+                          onChange={e => setSaveGroupName(e.target.value)}
+                          className="h-10 rounded-lg bg-orange-50/50 border-orange-200"
+                          required={saveGroupChecked}
+                        />
+                      )}
+                    </div>
+                  )}
                 </div>
 
               </form>

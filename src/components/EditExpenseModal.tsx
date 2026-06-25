@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Member, updateExpense } from '@/app/actions/expense';
 import { TransactionHistory } from '@/app/actions/fund';
 import { getSystemConfig, WarningThreshold } from '@/app/actions/system_settings';
@@ -14,6 +14,7 @@ import { Loader2, Search, Settings2, Minus, Plus } from 'lucide-react';
 import { Checkbox } from './ui/checkbox';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { ScrollArea } from './ui/scroll-area';
+import { removeAccents } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 
 export function EditExpenseModal({ 
@@ -95,9 +96,10 @@ export function EditExpenseModal({
     }
   }, [open, expense, pinCode]);
 
-  const filteredMembers = members.filter(m => 
-    m.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredMembers = useMemo(() => members.filter(m => {
+    if (!search) return true;
+    return removeAccents(m.name).toLowerCase().includes(removeAccents(search).toLowerCase());
+  }), [members, search]);
 
   useEffect(() => {
     if (splitMode === 'exact_amount') {

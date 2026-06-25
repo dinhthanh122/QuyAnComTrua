@@ -11,6 +11,7 @@ import { NotificationFeed } from './NotificationFeed';
 import { EditExpenseModal } from './EditExpenseModal';
 import { Member } from '@/app/actions/expense';
 import { useRouter } from 'next/navigation';
+import { removeAccents } from '@/lib/utils';
 
 export function HistoryFilterView({ 
   initialHistory, 
@@ -70,9 +71,9 @@ export function HistoryFilterView({
     return initialHistory.filter(tx => {
       // 1. Filter by Search
       if (search) {
-        const query = search.toLowerCase();
-        if (!tx.actor_name.toLowerCase().includes(query) && 
-            !(tx.description && tx.description.toLowerCase().includes(query))) {
+        const query = removeAccents(search.toLowerCase());
+        if (!removeAccents(tx.actor_name.toLowerCase()).includes(query) && 
+            !(tx.description && removeAccents(tx.description.toLowerCase()).includes(query))) {
           return false;
         }
       }

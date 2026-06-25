@@ -10,7 +10,8 @@ import { SystemSettingsModal } from '@/components/SystemSettingsModal';
 import { EmailConfigModal } from '@/components/EmailConfigModal';
 import { ResetDatabaseModal } from '@/components/ResetDatabaseModal';
 import { LoginModal } from '@/components/LoginModal';
-import { checkIsAdmin, logoutAdmin } from './actions/auth';
+import { LoginPage } from '@/components/LoginPage';
+import { checkIsAdmin, logoutAdmin, getAuthenticatedMemberId, logoutMember } from './actions/auth';
 import { AdminSessionTimeout } from '@/components/AdminSessionTimeout';
 import { UtensilsCrossed, History } from 'lucide-react';
 import Link from 'next/link';
@@ -35,6 +36,13 @@ export default async function Home() {
   }
 
   const isAdmin = await checkIsAdmin();
+  const memberId = await getAuthenticatedMemberId();
+
+  if (!isAdmin && !memberId) {
+    return <LoginPage />;
+  }
+
+  const currentUser = members.find(m => m.id === memberId) || null;
 
   return (
     <main className="min-h-screen bg-slate-50 pb-20 font-sans selection:bg-blue-100">
@@ -53,20 +61,32 @@ export default async function Home() {
               <>
                 <AdminSessionTimeout />
                 <form action={logoutAdmin}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg">ADMIN</span>
+                    <button type="submit" className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 rounded-lg transition-colors font-medium">
+                      Đăng xuất
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : memberId ? (
+              <form action={logoutMember}>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg uppercase">
+                    {currentUser?.name || 'THÀNH VIÊN'}
+                  </span>
                   <button type="submit" className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 rounded-lg transition-colors font-medium">
                     Đăng xuất
                   </button>
-                </form>
-              </>
-            ) : (
-              <LoginModal />
-            )}
-            <NotificationFeed />
+                </div>
+              </form>
+            ) : null}
+            <NotificationFeed isAdmin={isAdmin} currentUserName={currentUser?.name} />
           </div>
         </div>
         
         <div className="flex flex-col gap-3">
-          <AddExpenseModal members={members} />
+          <AddExpenseModal members={members} currentMemberId={memberId} />
           {isAdmin && (
             <>
               <SettleDebtModal members={members} />

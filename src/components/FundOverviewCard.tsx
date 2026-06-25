@@ -79,7 +79,7 @@ export function FundOverviewCard({ members }: { members: Member[] }) {
                       style={{ height: `${heightPercent}%`, minHeight: '2px' }}
                     >
                       <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-[#089981]">
-                        {formatNumberShort(d.balance)}
+                        {d.isMasked ? '***' : formatNumberShort(d.balance)}
                       </div>
                     </div>
                   )}
@@ -93,7 +93,7 @@ export function FundOverviewCard({ members }: { members: Member[] }) {
                       style={{ height: `${heightPercent}%`, minHeight: '2px' }}
                     >
                       <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs font-bold text-[#f23645]">
-                        {formatNumberShort(d.balance)}
+                        {d.isMasked ? '***' : formatNumberShort(d.balance)}
                       </div>
                     </div>
                   )}
@@ -104,7 +104,7 @@ export function FundOverviewCard({ members }: { members: Member[] }) {
                   <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 flex flex-col items-center">
                     <div className="w-5 h-[2px] bg-slate-500 rounded-full"></div>
                     <div className="absolute -top-6 text-xs font-bold text-slate-500">
-                      0
+                      {d.isMasked ? '***' : '0'}
                     </div>
                   </div>
                 )}

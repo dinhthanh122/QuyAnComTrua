@@ -5,7 +5,7 @@ import { Bell } from 'lucide-react';
 import { getRecentNotifications, NotificationType } from '@/app/actions/notification';
 import { format } from 'date-fns';
 
-export function NotificationFeed() {
+export function NotificationFeed({ isAdmin, currentUserName }: { isAdmin?: boolean, currentUserName?: string }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -14,7 +14,13 @@ export function NotificationFeed() {
   useEffect(() => {
     // Fetch notifications
     const fetchNotifs = async () => {
-      const data = await getRecentNotifications();
+      let data = await getRecentNotifications();
+      
+      // Filter notifications
+      if (!isAdmin && currentUserName) {
+        data = data.filter(n => n.content.includes(currentUserName));
+      }
+
       setNotifications(data);
       
       const lastReadStr = localStorage.getItem('last_read_notification');

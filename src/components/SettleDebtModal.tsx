@@ -8,7 +8,8 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { ArrowRightLeft, Loader2, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import { ArrowRightLeft, Loader2, ArrowDownToLine, ArrowUpFromLine, Search, CheckCircle2 } from 'lucide-react';
+import { removeAccents } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 
 export function SettleDebtModal({ members }: { members: Member[] }) {
@@ -159,7 +160,7 @@ export function SettleDebtModal({ members }: { members: Member[] }) {
                       </div>
                       <div className="overflow-y-auto px-1">
                         {members
-                          .filter(m => m.name.toLowerCase().includes(userSearch.toLowerCase()))
+                          .filter(m => removeAccents(m.name).includes(removeAccents(userSearch)))
                           .map(m => (
                           <SelectItem 
                             key={m.id} 
@@ -174,7 +175,7 @@ export function SettleDebtModal({ members }: { members: Member[] }) {
                             </div>
                           </SelectItem>
                         ))}
-                      {members.filter(m => m.name.toLowerCase().includes(userSearch.toLowerCase())).length === 0 && (
+                      {members.filter(m => removeAccents(m.name).includes(removeAccents(userSearch))).length === 0 && (
                         <div className="py-4 text-center text-sm text-slate-500">Không tìm thấy</div>
                       )}
                     </div>

@@ -42,7 +42,9 @@ export function FoodieChart({ members }: { members: Member[] }) {
                     {index > 2 && <span className="w-6 text-center text-slate-400 font-bold">#{index + 1}</span>}
                     {m.name}
                   </span>
-                  <span className="text-orange-600 bg-orange-50 px-2.5 py-1 rounded-md">{count} bữa</span>
+                  <span className="text-orange-600 bg-orange-50 px-2.5 py-1 rounded-md">
+                    {count} bữa
+                  </span>
                 </div>
                 <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden">
                   <div 
