@@ -10,7 +10,7 @@ export async function loginAdmin(passcode: string) {
   const adminPass = process.env.ADMIN_PASSCODE;
   
   if (!adminPass) {
-    throw new Error('Chưa cấu hình mật khẩu quản lý trong hệ thống.');
+    return { error: 'Chưa cấu hình mật khẩu quản lý trong hệ thống.' };
   }
 
   if (passcode === adminPass) {
@@ -23,7 +23,7 @@ export async function loginAdmin(passcode: string) {
     });
     return { success: true };
   } else {
-    throw new Error('Mã PIN không chính xác!');
+    return { error: 'Mật khẩu không chính xác!' };
   }
 }
 
@@ -43,16 +43,16 @@ export async function loginMember(identifier: string, pinCode: string, remember:
     .or(`phone.eq.${identifier},email.eq.${identifier}`);
 
   if (error) {
-    throw new Error('Lỗi hệ thống: ' + error.message);
+    return { error: 'Lỗi hệ thống: ' + error.message };
   }
 
   if (!members || members.length === 0) {
-    throw new Error('Không tìm thấy tài khoản với Email/Số điện thoại này!');
+    return { error: 'Không tìm thấy tài khoản với Email/Số điện thoại này!' };
   }
 
   const member = members.find(m => m.pin_code === pinCode);
   if (!member) {
-    throw new Error('Mã PIN không chính xác!');
+    return { error: 'Mật khẩu không chính xác!' };
   }
 
   cookies().set(MEMBER_COOKIE_NAME, member.id, {

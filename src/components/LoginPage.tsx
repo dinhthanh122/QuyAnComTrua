@@ -30,12 +30,20 @@ export function LoginPage() {
     setError('');
 
     try {
+      let result;
       if (identifier.toLowerCase() === 'admin') {
         const { loginAdmin } = await import('@/app/actions/auth');
-        await loginAdmin(pinCode);
+        result = await loginAdmin(pinCode);
       } else {
-        await loginMember(identifier, pinCode, remember);
+        result = await loginMember(identifier, pinCode, remember);
       }
+
+      if (result?.error) {
+        setError(result.error);
+        setLoading(false);
+        return;
+      }
+
       router.refresh();
     } catch (err: any) {
       setError(err.message);
