@@ -3,10 +3,30 @@
 import { supabase } from '@/lib/supabase';
 import { checkIsAdmin } from './auth';
 
+export type WarningThreshold = {
+  id: string;
+  amount: number;
+  message: string;
+};
+
 export type SystemConfig = {
   require_pin_for_history: boolean;
-  expense_warning_threshold?: number;
+  expense_warning_threshold?: number; // legacy
+  expense_warning_thresholds?: WarningThreshold[];
 };
+
+export const DEFAULT_THRESHOLDS: WarningThreshold[] = [
+  {
+    id: 'default-1',
+    amount: 100000,
+    message: 'Đơn giá mỗi suất hiện tại quá cao. Vui lòng kiểm tra lại xem có nhập dư số 0 không nhé!'
+  },
+  {
+    id: 'default-2',
+    amount: 1000000,
+    message: 'Đội bạn ăn khỏe thật đấy!'
+  }
+];
 
 export async function getSystemConfig(): Promise<SystemConfig | null> {
   const { data, error } = await supabase
@@ -17,15 +37,28 @@ export async function getSystemConfig(): Promise<SystemConfig | null> {
 
   const defaultConfig: SystemConfig = { 
     require_pin_for_history: false,
-    expense_warning_threshold: 100000 
+    expense_warning_thresholds: DEFAULT_THRESHOLDS
   };
 
   if (error || !data || !data.setting_value) return defaultConfig;
 
   const value = data.setting_value as SystemConfig;
-  if (value.expense_warning_threshold === undefined) {
-    value.expense_warning_threshold = 100000;
+  
+  // Migration from old schema
+  if (!value.expense_warning_thresholds) {
+    if (value.expense_warning_threshold !== undefined) {
+      value.expense_warning_thresholds = [
+        {
+          id: 'legacy-1',
+          amount: value.expense_warning_threshold,
+          message: 'Đơn giá mỗi suất hiện tại quá cao. Vui lòng kiểm tra lại xem có nhập dư số 0 không nhé!'
+        }
+      ];
+    } else {
+      value.expense_warning_thresholds = DEFAULT_THRESHOLDS;
+    }
   }
+  
   return value;
 }
 

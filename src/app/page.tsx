@@ -6,6 +6,7 @@ import { FoodieChart } from '@/components/FoodieChart';
 import { AddExpenseModal } from '@/components/AddExpenseModal';
 import { SettleDebtModal } from '@/components/SettleDebtModal';
 import { ManageMembersModal } from '@/components/ManageMembersModal';
+import { SystemSettingsModal } from '@/components/SystemSettingsModal';
 import { EmailConfigModal } from '@/components/EmailConfigModal';
 import { ResetDatabaseModal } from '@/components/ResetDatabaseModal';
 import { LoginModal } from '@/components/LoginModal';
@@ -72,6 +73,7 @@ export default async function Home() {
                   Lịch sử Giao dịch
                 </Link>
                 <ManageMembersModal members={members} />
+                <SystemSettingsModal />
                 <EmailConfigModal />
                 <div className="col-span-2">
                   <ResetDatabaseModal />
