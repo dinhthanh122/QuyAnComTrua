@@ -13,6 +13,7 @@ export function SystemSettingsModal() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<SystemConfig | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string>('');
 
   useEffect(() => {
     if (open) {
@@ -25,8 +26,10 @@ export function SystemSettingsModal() {
     try {
       const cfg = await getSystemConfig();
       setConfig(cfg);
-    } catch (error) {
+      setErrorMsg('');
+    } catch (error: any) {
       console.error(error);
+      setErrorMsg(error.message || 'Lỗi không xác định khi tải dữ liệu');
     } finally {
       setLoading(false);
     }
@@ -93,6 +96,11 @@ export function SystemSettingsModal() {
         {loading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+          </div>
+        ) : errorMsg ? (
+          <div className="p-6 text-center text-red-500">
+            <p>Có lỗi xảy ra: {errorMsg}</p>
+            <p className="text-sm mt-2 text-slate-500">Hãy thử tải lại trang bằng F5 hoặc Ctrl+F5.</p>
           </div>
         ) : config ? (
           <div className="space-y-6 mt-4">
