@@ -98,7 +98,7 @@ export async function verifyPinAndGetHistory(memberId: string, pinCode: string |
   }
 
   // Add remaining paidExpenses (user paid but didn't participate)
-  for (const exp of paidMap.values()) {
+  for (const exp of Array.from(paidMap.values())) {
     history.push({
       id: exp.id,
       type: 'PAID',

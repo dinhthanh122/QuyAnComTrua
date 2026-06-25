@@ -65,7 +65,7 @@ export function MembersList({ members }: { members: Member[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input 
@@ -75,8 +75,8 @@ export function MembersList({ members }: { members: Member[] }) {
             className="pl-9 h-12 text-base rounded-xl shadow-sm"
           />
         </div>
-        <div className="w-full sm:w-[260px] shrink-0">
-          <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setCurrentPage(1); }}>
+        <div className="w-full md:w-[260px] shrink-0">
+          <Select value={sortBy} onValueChange={(v) => { if (v) { setSortBy(v); setCurrentPage(1); } }}>
             <SelectTrigger className="h-12 text-base rounded-xl shadow-sm bg-white border-slate-200">
               <div className="flex items-center gap-2">
                 <ArrowDownUp className="w-5 h-5 text-slate-500" />

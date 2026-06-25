@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Member, addExpense, checkDuplicateExpense, ParticipantSplit } from '@/app/actions/expense';
+import { getSystemConfig } from '@/app/actions/system_settings';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
@@ -31,6 +32,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
   const [participants, setParticipants] = useState<string[]>([]);
   const [splitMode, setSplitMode] = useState<'equal' | 'portions' | 'exact_amount' | 'pay_for_others'>('equal');
   const [advancedSplits, setAdvancedSplits] = useState<Record<string, { portions: number, sponsor_id: string | null }>>({});
+  const [warningThreshold, setWarningThreshold] = useState<number>(100000);
 
   useEffect(() => {
     if (open) {
@@ -38,11 +40,16 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
       setPayerId('');
       setDescription('');
       setDate(new Date().toISOString().split('T')[0]);
+      setSearch('');
+      setPayerSearch('');
       setParticipants([]);
       setSplitMode('equal');
       setAdvancedSplits({});
-      setSearch('');
-      setPayerSearch('');
+      getSystemConfig().then(cfg => {
+        if (cfg && cfg.expense_warning_threshold !== undefined) {
+          setWarningThreshold(cfg.expense_warning_threshold);
+        }
+      });
       setShowConfirm(false);
       setIsDuplicate(false);
       isSelectClosing.current = false;
@@ -80,7 +87,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
     });
   };
 
-  const handlePayerChange = (v: string) => {
+  const handlePayerChange = (v: string | null) => {
     isSelectClosing.current = true;
     setTimeout(() => isSelectClosing.current = false, 200);
 
@@ -101,7 +108,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
       }
       return next;
     });
-    setPayerId(v);
+    setPayerId(v || '');
 
     setTimeout(() => {
       const el = document.getElementById(`participant-container-${v}`);
@@ -206,6 +213,7 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
   };
 
   const preview = showConfirm ? calculatePreview() : null;
+  const isWarningCost = preview && warningThreshold > 0 && preview.portionPrice > warningThreshold;
 
   return (
     <Dialog open={open} onOpenChange={(val) => {
@@ -238,6 +246,16 @@ export function AddExpenseModal({ members }: { members: Member[] }) {
                     </div>
                     <div className="text-sm text-yellow-700">
                       Hệ thống phát hiện bạn đã tạo một hóa đơn y hệt (cùng số tiền và cùng những người tham gia này) trong ngày {new Date(date).toLocaleDateString('vi-VN')}. Bạn có chắc chắn muốn báo thêm lần nữa?
+                    </div>
+                  </div>
+                )}
+                {isWarningCost && preview && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl space-y-2">
+                    <div className="font-bold text-red-800 flex items-center gap-2">
+                      <span className="text-xl">⚠️</span> Cảnh báo chi phí cao bất thường
+                    </div>
+                    <div className="text-sm text-red-700">
+                      Đơn giá mỗi suất hiện tại là <strong>{Math.round(preview.portionPrice).toLocaleString('vi-VN')}đ</strong>, vượt quá mức cảnh báo cấu hình ({warningThreshold.toLocaleString('vi-VN')}đ/suất). Vui lòng kiểm tra lại xem có nhập dư số 0 không nhé!
                     </div>
                   </div>
                 )}

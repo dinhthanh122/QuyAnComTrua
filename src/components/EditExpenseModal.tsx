@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Member, updateExpense } from '@/app/actions/expense';
 import { TransactionHistory } from '@/app/actions/fund';
+import { getSystemConfig } from '@/app/actions/system_settings';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
@@ -51,6 +52,7 @@ export function EditExpenseModal({
   const [inputPin, setInputPin] = useState('');
   
   const [advancedSplits, setAdvancedSplits] = useState<Record<string, { portions: number, sponsor_id: string | null }>>({});
+  const [warningThreshold, setWarningThreshold] = useState<number>(100000);
 
   useEffect(() => {
     if (open && expense) {
@@ -81,6 +83,12 @@ export function EditExpenseModal({
       } else {
         setSplitMode('equal');
       }
+
+      getSystemConfig().then(cfg => {
+        if (cfg && cfg.expense_warning_threshold !== undefined) {
+          setWarningThreshold(cfg.expense_warning_threshold);
+        }
+      });
 
       setInputPin('');
       setShowConfirm(false);
@@ -119,7 +127,7 @@ export function EditExpenseModal({
     });
   };
 
-  const handlePayerChange = (v: string) => {
+  const handlePayerChange = (v: string | null) => {
     isSelectClosing.current = true;
     setTimeout(() => isSelectClosing.current = false, 200);
 
@@ -141,6 +149,7 @@ export function EditExpenseModal({
       }
       return next;
     });
+    setPayerId(v || '');
 
     setTimeout(() => {
       const el = document.getElementById(`edit-participant-container-${v}`);
@@ -227,6 +236,7 @@ export function EditExpenseModal({
   };
 
   const preview = showConfirm ? calculatePreview() : null;
+  const isWarningCost = preview && warningThreshold > 0 && preview.portionPrice > warningThreshold;
 
   const executeDelete = async () => {
     if (!expense) return;
@@ -270,6 +280,16 @@ export function EditExpenseModal({
           <div className="flex-1 flex flex-col overflow-hidden">
             <ScrollArea className="flex-1 px-6 pb-6 overflow-y-auto">
               <div className="space-y-4 mt-2">
+                {isWarningCost && preview && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl space-y-2">
+                    <div className="font-bold text-red-800 flex items-center gap-2">
+                      <span className="text-xl">⚠️</span> Cảnh báo chi phí cao bất thường
+                    </div>
+                    <div className="text-sm text-red-700">
+                      Đơn giá mỗi suất hiện tại là <strong>{Math.round(preview.portionPrice).toLocaleString('vi-VN')}đ</strong>, vượt quá mức cảnh báo cấu hình ({warningThreshold.toLocaleString('vi-VN')}đ/suất). Vui lòng kiểm tra lại xem có nhập dư số 0 không nhé!
+                    </div>
+                  </div>
+                )}
                 <div className="p-4 bg-orange-50 border border-orange-100 rounded-xl space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-slate-500">Tổng tiền mới:</span>

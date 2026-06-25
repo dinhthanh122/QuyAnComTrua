@@ -32,11 +32,15 @@ export function ManageMembersModal({ members }: { members: Member[] }) {
 
   // System settings
   const [requirePin, setRequirePin] = useState(false);
+  const [warningThreshold, setWarningThreshold] = useState<number>(100000);
 
   useEffect(() => {
     if (open) {
       getSystemConfig().then(cfg => {
-        if (cfg) setRequirePin(cfg.require_pin_for_history);
+        if (cfg) {
+          setRequirePin(cfg.require_pin_for_history);
+          setWarningThreshold(cfg.expense_warning_threshold ?? 100000);
+        }
       });
     }
   }, [open]);
@@ -44,10 +48,18 @@ export function ManageMembersModal({ members }: { members: Member[] }) {
   const handleToggleRequirePin = async (checked: boolean) => {
     setRequirePin(checked);
     try {
-      await saveSystemConfig({ require_pin_for_history: checked });
+      await saveSystemConfig({ require_pin_for_history: checked, expense_warning_threshold: warningThreshold });
     } catch (e: any) {
       alert(e.message);
       setRequirePin(!checked);
+    }
+  };
+
+  const handleSaveThreshold = async (val: number) => {
+    try {
+      await saveSystemConfig({ require_pin_for_history: requirePin, expense_warning_threshold: val });
+    } catch (e: any) {
+      alert(e.message);
     }
   };
 
@@ -131,12 +143,24 @@ export function ManageMembersModal({ members }: { members: Member[] }) {
         </DialogHeader>
 
         {/* Global Settings */}
-        <div className="flex items-center justify-between mt-2 p-3 bg-blue-50 rounded-xl border border-blue-100">
-          <div className="text-sm font-medium text-blue-900">Bảo mật xem lịch sử giao dịch bằng Mã PIN</div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" className="sr-only peer" checked={requirePin} onChange={e => handleToggleRequirePin(e.target.checked)} />
-            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
+        <div className="flex flex-col gap-2 mt-2 p-3 bg-blue-50 rounded-xl border border-blue-100">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-blue-900">Bảo mật xem lịch sử giao dịch bằng Mã PIN</div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" className="sr-only peer" checked={requirePin} onChange={e => handleToggleRequirePin(e.target.checked)} />
+              <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+          <div className="flex items-center justify-between border-t border-blue-200/50 pt-2 mt-1">
+            <div className="text-sm font-medium text-blue-900">Ngưỡng cảnh báo chi phí / suất (VNĐ)</div>
+            <Input
+              type="number"
+              className="w-28 h-8 text-right bg-white rounded-lg border-blue-200 focus-visible:ring-blue-500"
+              value={warningThreshold || ''}
+              onChange={e => setWarningThreshold(Number(e.target.value) || 0)}
+              onBlur={e => handleSaveThreshold(Number(e.target.value) || 0)}
+            />
+          </div>
         </div>
 
         {/* Add new */}

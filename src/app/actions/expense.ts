@@ -56,6 +56,8 @@ export async function getMembers(): Promise<Member[]> {
     });
   }
 
+
+
   membersList = membersList.map(m => ({
     ...m,
     meal_count: mealCounts[m.id] || 0
@@ -314,8 +316,10 @@ export async function updateExpense(data: {
   if (Object.keys(oldNetChanges).length === 0) {
     // Fallback for old records without META
     oldNetChanges[oldExp.payer_id] = oldExp.total_amount;
-    for (const s of oldSplits) {
-      oldNetChanges[s.user_id] = (oldNetChanges[s.user_id] || 0) - s.amount_owed;
+    if (oldSplits) {
+      for (const s of oldSplits) {
+        oldNetChanges[s.user_id] = (oldNetChanges[s.user_id] || 0) - s.amount_owed;
+      }
     }
   }
 
@@ -334,7 +338,7 @@ export async function updateExpense(data: {
 
   // Calculate diff to apply to balances
   const diffChanges: Record<string, number> = {};
-  const allUsers = new Set([...Object.keys(oldNetChanges), ...Object.keys(newNetChanges)]);
+  const allUsers = Array.from(new Set([...Object.keys(oldNetChanges), ...Object.keys(newNetChanges)]));
   for (const u of allUsers) {
     diffChanges[u] = (newNetChanges[u] || 0) - (oldNetChanges[u] || 0);
   }

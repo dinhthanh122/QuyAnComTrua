@@ -5,6 +5,7 @@ import { checkIsAdmin } from './auth';
 
 export type SystemConfig = {
   require_pin_for_history: boolean;
+  expense_warning_threshold?: number;
 };
 
 export async function getSystemConfig(): Promise<SystemConfig | null> {
@@ -14,9 +15,18 @@ export async function getSystemConfig(): Promise<SystemConfig | null> {
     .eq('setting_key', 'system_config')
     .maybeSingle();
 
-  if (error || !data || !data.setting_value) return { require_pin_for_history: false };
+  const defaultConfig: SystemConfig = { 
+    require_pin_for_history: false,
+    expense_warning_threshold: 100000 
+  };
 
-  return data.setting_value as SystemConfig;
+  if (error || !data || !data.setting_value) return defaultConfig;
+
+  const value = data.setting_value as SystemConfig;
+  if (value.expense_warning_threshold === undefined) {
+    value.expense_warning_threshold = 100000;
+  }
+  return value;
 }
 
 export async function saveSystemConfig(config: SystemConfig) {
