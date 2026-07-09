@@ -40,14 +40,14 @@ export async function loginMember(identifier: string, pinCode: string, remember:
   const { data: members, error } = await supabase
     .from('members')
     .select('*')
-    .eq('email', identifier);
+    .ilike('email', identifier.trim());
 
   if (error) {
     return { error: 'Lỗi hệ thống: ' + error.message };
   }
 
   if (!members || members.length === 0) {
-    return { error: 'Không tìm thấy tài khoản với Email/Số điện thoại này!' };
+    return { error: 'Không tìm thấy tài khoản với Email này!' };
   }
 
   const member = members.find(m => m.pin_code === pinCode);

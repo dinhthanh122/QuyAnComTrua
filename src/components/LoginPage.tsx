@@ -154,8 +154,7 @@ export function LoginPage() {
                     type={showPin ? "text" : "password"}
                     placeholder="Nhập mật khẩu"
                     value={pinCode}
-                    onChange={e => setPinCode(e.target.value.replace(/\D/g, ''))}
-                    maxLength={6}
+                    onChange={e => setPinCode(e.target.value)}
                     className="h-12 pl-11 pr-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 tracking-widest font-mono transition-colors"
                     disabled={loading}
                   />
