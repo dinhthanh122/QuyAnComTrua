@@ -40,7 +40,7 @@ export async function loginMember(identifier: string, pinCode: string, remember:
   const { data: members, error } = await supabase
     .from('members')
     .select('*')
-    .or(`phone.eq.${identifier},email.eq.${identifier}`);
+    .eq('email', identifier);
 
   if (error) {
     return { error: 'Lỗi hệ thống: ' + error.message };

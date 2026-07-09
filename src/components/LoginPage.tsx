@@ -132,10 +132,10 @@ export function LoginPage() {
 
             <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2">
-                <Label className="text-slate-800 font-bold text-sm">Email / Số điện thoại</Label>
+                <Label className="text-slate-800 font-bold text-sm">Email đăng nhập</Label>
                 <div className="relative">
                   <Input 
-                    placeholder="Nhập email hoặc số điện thoại"
+                    placeholder="Nhập email của bạn"
                     value={identifier}
                     onChange={e => setIdentifier(e.target.value)}
                     className="h-12 pl-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 transition-colors"
